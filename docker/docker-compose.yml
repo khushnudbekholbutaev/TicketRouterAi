@@ -21,3 +21,12 @@ services:
     command: mlflow server --host 0.0.0.0 --backend-store-uri sqlite:////mlflow/mlflow.db
     volumes: ["../mlflow.db:/mlflow/mlflow.db"]
     ports: ["5000:5000"]
+  ui:
+    image: nginx:1.27-alpine
+    env_file: ../.env
+    volumes:
+      - ../ui/html:/usr/share/nginx/html:ro
+      - ../ui/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    ports: ["8080:80"]
+    depends_on: [api]
+    restart: unless-stopped

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TicketRouter AI</title>
+<style>
+:root{
+  --bg:#f5f6f8;--panel:#fff;--panel2:#f0f2f5;--text:#1b1f24;--muted:#646d78;--line:#e1e4e8;
+  --accent:#2f6fde;--accent-soft:#e6eefc;--ok:#1f8a4c;--ok-soft:#e3f4ea;--warn:#b86a00;--warn-soft:#fdf0dc;
+  --bad:#c0392b;--bad-soft:#fbe5e2;--bar:#2f6fde;--shadow:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111418;--panel:#1a1e24;--panel2:#22272e;--text:#e6e9ed;--muted:#97a0ab;--line:#2d333b;
+  --accent:#5b8ff0;--accent-soft:#1d2a42;--ok:#4cc27f;--ok-soft:#173326;--warn:#e0a040;--warn-soft:#3a2c14;
+  --bad:#ef6b5c;--bad-soft:#3d1f1b;--bar:#5b8ff0;--shadow:none;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+.top{display:flex;align-items:center;gap:16px;height:56px}
+.brand{font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px}
+.logo{width:26px;height:26px;border-radius:7px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:13px}
+nav{display:flex;gap:4px;margin-left:12px}
+nav button{background:none;border:0;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;font-weight:500}
+nav button.active{background:var(--accent-soft);color:var(--accent)}
+.status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
+main{padding:20px 0 40px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow)}
+.card h2{margin:0 0 14px;font-size:15px}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px}
+input,textarea,select{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit}
+textarea{resize:vertical;min-height:150px}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.field{margin-top:12px}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:9px 14px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.55;cursor:default}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;color:var(--text)}
+.empty{color:var(--muted);text-align:center;padding:50px 10px}
+.result-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.queue{font-size:22px;font-weight:700;margin:2px 0 4px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.meter{height:10px;background:var(--panel2);border-radius:6px;position:relative;overflow:visible;margin:14px 0 6px}
+.meter>span{display:block;height:100%;border-radius:6px;background:var(--ok)}
+.meter>span.low{background:var(--warn)}
+.meter .thr{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);opacity:.6}
+.meter-lbl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.section{margin-top:18px}
+.section h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 8px}
+.bars .b{display:grid;grid-template-columns:minmax(0,190px) 1fr 54px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+.bars .b .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .track{height:8px;background:var(--panel2);border-radius:5px;overflow:hidden}
+.bars .track span{display:block;height:100%;background:var(--bar);border-radius:5px}
+.bars .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{background:var(--accent-soft);color:var(--accent);padding:3px 9px;border-radius:6px;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.meta div{background:var(--panel2);border-radius:8px;padding:8px 10px}
+.meta b{display:block;font-size:11px;color:var(--muted);font-weight:600}
+.meta span{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:10px 12px;margin-top:12px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;background:var(--panel2)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.trunc{max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.stat{background:var(--panel2);border-radius:10px;padding:12px}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.links{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.links a{display:block;text-decoration:none;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px}
+.links a b{display:block;margin-bottom:2px}
+.links a span{font-size:12px;color:var(--muted)}
+.kv{display:grid;grid-template-columns:160px 1fr;gap:8px 12px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.hidden{display:none!important}
+.hist-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.hist-item:last-child{border-bottom:0}
+.hist-item .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:r .7s linear infinite;vertical-align:-2px}
+@keyframes r{to{transform:rotate(360deg)}}
+@media (max-width:860px){
+  .grid{grid-template-columns:1fr}.links{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}
+  .meta{grid-template-columns:1fr 1fr}.top{height:auto;flex-wrap:wrap;padding:10px 0}nav{margin-left:0;order:3;width:100%;overflow-x:auto}
+  .bars .b{grid-template-columns:minmax(0,120px) 1fr 48px}.kv{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap top">
+    <div class="brand"><div class="logo">TR</div>TicketRouter AI</div>
+    <nav>
+      <button data-tab="single" class="active">Murojaat</button>
+      <button data-tab="batch">Ommaviy</button>
+      <button data-tab="model">Model</button>
+      <button data-tab="monitor">Monitoring</button>
+    </nav>
+    <div class="status"><span class="dot" id="hdot"></span><span id="htext">Tekshirilmoqda…</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ===== Bitta murojaat ===== -->
+<section id="tab-single">
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Yangi murojaat</h2>
+        <label for="subject">Mavzu</label>
+        <input id="subject" maxlength="300" placeholder="Masalan: Hisob">
+        <div class="field">
+          <label for="body">Matn</label>
+          <textarea id="body" maxlength="5000" placeholder="Murojaat matnini kiriting (kamida 10 belgi)…"></textarea>
+          <div class="hint"><span id="cnt">0</span> / 5000 belgi · Ctrl+Enter — yuborish</div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="lang">Til</label>
+            <select id="lang"><option value="">Avtomatik aniqlash</option><option value="uz">O'zbek</option><option value="en">English</option><option value="de">Deutsch</option></select>
+          </div>
+          <div>
+            <label for="ctype">Mijoz turi</label>
+            <select id="ctype"><option value="">Ko'rsatilmagan</option><option value="jismoniy">Jismoniy shaxs</option><option value="yuridik">Yuridik shaxs</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Namunalar</label>
+          <div class="chips" id="samples"></div>
+        </div>
+        <div class="btns">
+          <button class="btn primary" id="go">Toifalash</button>
+          <button class="btn" id="clear">Tozalash</button>
+        </div>
+        <div class="err hidden" id="err"></div>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <h2 style="display:flex;justify-content:space-between">So'nggi so'rovlar <button class="chip" id="hclear">Tozalash</button></h2>
+        <div id="hist"><div class="hint">Hali so'rov yo'q.</div></div>
+      </div>
+    </div>
+    <div class="card" id="result"><div class="empty">Natija shu yerda ko'rinadi.<br>Murojaat matnini kiriting va «Toifalash» tugmasini bosing.</div></div>
+  </div>
+</section>
+
+<!-- ===== Ommaviy ===== -->
+<section id="tab-batch" class="hidden">
+  <div class="card">
+    <h2>Ommaviy toifalash</h2>
+    <label for="bin">Har bir qatorda bitta murojaat. Mavzuni ajratish uchun: <code>mavzu | matn</code></label>
+    <textarea id="bin" style="min-height:170px" placeholder="Hisob | Kartamdan pul ikki marta yechib olindi, qaytarib bering&#10;Login | I cannot log into my account since yesterday, password reset does not work&#10;Lieferung | Meine Bestellung ist nicht angekommen und ich möchte das Geld zurück"></textarea>
+    <div class="btns">
+      <button class="btn primary" id="bgo">Toifalash</button>
+      <label class="btn" style="margin:0;color:var(--text);font-size:14px">CSV yuklash<input type="file" id="bfile" accept=".csv,.txt" class="hidden"></label>
+      <button class="btn hidden" id="bdl">Natijani CSV yuklab olish</button>
+      <span class="hint" id="binfo">CSV ustunlari: subject, body (maks. 1000 qator)</span>
+    </div>
+    <div class="err hidden" id="berr"></div>
+    <div id="bout"></div>
+  </div>
+</section>
+
+<!-- ===== Model ===== -->
+<section id="tab-model" class="hidden">
+  <div class="grid">
+    <div class="card"><h2>Model haqida</h2><div id="minfo" class="hint">Yuklanmoqda…</div></div>
+    <div class="card"><h2>Til bo'yicha yo'naltirish chegaralari</h2>
+      <p class="hint" style="margin-top:0">Ishonch shu chegaradan past bo'lsa, murojaat operatorga yuboriladi.</p>
+      <div id="mthr" class="bars"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:20px"><h2>Navbatlar (toifalar)</h2><div id="mcls" class="tags"></div></div>
+</section>
+
+<!-- ===== Monitoring ===== -->
+<section id="tab-monitor" class="hidden">
+  <div class="card">
+    <h2>Monitoring xizmatlari</h2>
+    <div class="links" id="mlinks"></div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <h2>API ko'rsatkichlari (jonli)</h2>
+    <div class="stats" id="mstats"></div>
+    <div class="grid" style="gap:20px">
+      <div><div class="section"><h3>Navbatlar bo'yicha bashoratlar</h3><div class="bars" id="mq"></div></div></div>
+      <div><div class="section"><h3>Tillar va yo'naltirish</h3><div class="bars" id="ml"></div></div></div>
+    </div>
+    <div class="hint" id="mupd" style="margin-top:12px"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+const API = '/api';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pct = v => (v * 100).toFixed(1) + '%';
+const LANG = {uz:"O'zbek", en:'English', de:'Deutsch'};
+const QUZ = {
+  'Technical Support':'Texnik yordam','Product Support':'Mahsulot bo\'yicha yordam','Customer Service':'Mijozlarga xizmat',
+  'IT Support':'IT yordam','Billing and Payments':'Hisob va to\'lovlar','Returns and Exchanges':'Qaytarish va almashtirish',
+  'Service Outages and Maintenance':'Uzilishlar va texnik ishlar','Sales and Pre-Sales':'Savdo','Human Resources':'Kadrlar bo\'limi',
+  'General Inquiry':'Umumiy savol'
+};
+
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, {headers:{'Content-Type':'application/json'}, ...opts});
+  const txt = await r.text();
+  let data; try { data = JSON.parse(txt); } catch { data = txt; }
+  if (!r.ok) {
+    let msg = `Xato ${r.status}`;
+    if (r.status === 429) msg = 'So\'rovlar limiti oshib ketdi (daqiqasiga 60). Birozdan so\'ng urinib ko\'ring.';
+    else if (r.status === 401) msg = 'API-kalit noto\'g\'ri (serverdagi .env faylini tekshiring).';
+    else if (data && data.detail) msg += ': ' + (Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : data.detail);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('main > section').forEach(s => s.classList.toggle('hidden', s.id !== 'tab-' + b.dataset.tab));
+  if (b.dataset.tab === 'model') loadModel();
+  if (b.dataset.tab === 'monitor') loadMetrics();
+  try { localStorage.setItem('tr_tab', b.dataset.tab); } catch {}
+});
+
+/* ---------- health ---------- */
+async function health() {
+  try {
+    const h = await api('/health');
+    $('#hdot').className = 'dot ' + (h.status === 'ok' ? 'ok' : 'bad');
+    $('#htext').textContent = h.status === 'ok' ? `API ishlayapti · v${h.model_version}` : 'Model yuklanmoqda';
+  } catch { $('#hdot').className = 'dot bad'; $('#htext').textContent = 'API bilan aloqa yo\'q'; }
+}
+
+/* ---------- single ---------- */
+const SAMPLES = [
+  ['🇺🇿 To\'lov', 'Hisob', 'Kartamdan pul ikki marta yechib olindi, iltimos qaytarib bering', 'uz'],
+  ['🇺🇿 Internet', 'Aloqa', 'Kecha kechqurundan beri internet ishlamayapti, yordam kerak', 'uz'],
+  ['🇬🇧 Login', 'Account access', 'I cannot log into my account since yesterday, the password reset link does not work.', 'en'],
+  ['🇬🇧 Refund', 'Return', 'I received a damaged laptop and would like to return it and get a refund.', 'en'],
+  ['🇩🇪 Rechnung', 'Rechnung', 'Ich habe eine falsche Rechnung erhalten, bitte prüfen Sie den Betrag und korrigieren Sie die Rechnung.', 'de'],
+];
+$('#samples').innerHTML = SAMPLES.map((s, i) => `<button class="chip" data-i="${i}">${esc(s[0])}</button>`).join('');
+$('#samples').onclick = e => {
+  const i = e.target.dataset.i; if (i == null) return;
+  const s = SAMPLES[i]; $('#subject').value = s[1]; $('#body').value = s[2]; $('#lang').value = ''; updCnt(); classify();
+};
+const updCnt = () => $('#cnt').textContent = $('#body').value.length;
+$('#body').addEventListener('input', updCnt);
+$('#body').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) classify(); });
+$('#go').onclick = classify;
+$('#clear').onclick = () => { $('#subject').value = ''; $('#body').value = ''; updCnt(); $('#err').classList.add('hidden'); };
+
+async function classify() {
+  const body = $('#body').value.trim();
+  const err = $('#err'); err.classList.add('hidden');
+  if (body.length < 10) { err.textContent = 'Matn kamida 10 belgidan iborat bo\'lishi kerak.'; err.classList.remove('hidden'); return; }
+  const payload = {subject: $('#subject').value.trim(), body};
+  if ($('#lang').value) payload.language = $('#lang').value;
+  if ($('#ctype').value) payload.customer_type = $('#ctype').value;
+  const btn = $('#go'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Tahlil qilinmoqda…';
+  const t0 = performance.now();
+  try {
+    const r = await api('/predict', {method:'POST', body: JSON.stringify(payload)});
+    renderResult(r, Math.round(performance.now() - t0));
+    addHist(payload, r);
+  } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  finally { btn.disabled = false; btn.textContent = 'Toifalash'; }
+}
+
+function bars(items) {
+  return items.map(([name, v, label]) => `<div class="b"><div class="name" title="${esc(name)}">${esc(name)}</div>
+    <div class="track"><span style="width:${Math.max(1, Math.min(100, v * 100))}%"></span></div><div class="v">${label ?? pct(v)}</div></div>`).join('');
+}
+
+function renderResult(r, ms) {
+  const routed = r.route_to_operator;
+  const maxC = Math.max(...r.reasons.map(x => Math.abs(x.contribution)), 1e-9);
+  $('#result').innerHTML = `
+    <div class="result-head">
+      <div><label>Tavsiya etilgan navbat</label>
+        <div class="queue">${esc(r.queue)}</div>
+        <div class="hint" style="margin:0">${esc(QUZ[r.queue] || '')}</div></div>
+      <span class="badge ${routed ? 'warn' : 'ok'}">${routed ? '⚠ Operatorga yuborilsin' : '✓ Avtomatik yo\'naltirildi'}</span>
+    </div>
+    <div class="meter"><span class="${routed ? 'low' : ''}" style="width:${r.confidence * 100}%"></span>
+      <div class="thr" style="left:${r.threshold * 100}%" title="Chegara ${pct(r.threshold)}"></div></div>
+    <div class="meter-lbl"><span>Ishonch: <b style="color:var(--text)">${pct(r.confidence)}</b></span><span>Chegara (${esc(r.language)}): ${pct(r.threshold)}</span></div>
+    ${routed ? `<div class="hint">Ishonch chegaradan past — model qaroriga to'liq tayanib bo'lmaydi, murojaatni operator ko'rib chiqishi kerak.</div>` : ''}
+    <div class="section"><h3>Top-3 navbat</h3><div class="bars">${bars(r.top3.map(t => [t.queue, t.probability]))}</div></div>
+    <div class="section"><h3>Qaror sabablari (eng ta'sirli so'zlar)</h3>
+      ${r.reasons.length ? `<div class="bars">${bars(r.reasons.map(x => [x.feature, Math.abs(x.contribution) / maxC, x.contribution.toFixed(3)]))}</div>` : '<div class="hint">Ma\'lumot yo\'q</div>'}</div>
+    <div class="meta">
+      <div><b>Til</b><span>${esc(LANG[r.language] || r.language)}</span></div>
+      <div><b>Model</b><span>v${esc(r.model_version)}</span></div>
+      <div><b>Javob vaqti</b><span>${ms} ms</span></div>
+      <div style="grid-column:1/-1"><b>Request ID</b><span>${esc(r.request_id)}</span></div>
+    </div>`;
+}
+
+/* ---------- history (per-browser) ---------- */
+let HIST = []; try { HIST = JSON.parse(localStorage.getItem('tr_hist') || '[]'); } catch {}
+function saveHist() { try { localStorage.setItem('tr_hist', JSON.stringify(HIST.slice(0, 15))); } catch {} }
+function addHist(p, r) { HIST.unshift({p, r, at: Date.now()}); HIST = HIST.slice(0, 15); saveHist(); drawHist(); }
+function drawHist() {
+  if (!HIST.length) { $('#hist').innerHTML = '<div class="hint">Hali so\'rov yo\'q.</div>'; return; }
+  $('#hist').innerHTML = HIST.map((h, i) => `<div class="hist-item" data-i="${i}">
+    <div style="min-width:0"><div><b>${esc(h.r.queue)}</b> · ${pct(h.r.confidence)} ${h.r.route_to_operator ? '<span class="badge warn" style="padding:1px 7px">operator</span>' : ''}</div>
+    <div class="t">${esc((h.p.subject ? h.p.subject + ' — ' : '') + h.p.body)}</div></div>
+    <div class="hint" style="white-space:nowrap;margin:0">${new Date(h.at).toLocaleTimeString()}</div></div>`).join('');
+}
+$('#hist').onclick = e => {
+  const el = e.target.closest('.hist-item'); if (!el) return;
+  const h = HIST[el.dataset.i]; $('#subject').value = h.p.subject; $('#body').value = h.p.body;
+  $('#lang').value = h.p.language || ''; $('#ctype').value = h.p.customer_type || ''; updCnt(); renderResult(h.r, '—');
+};
+$('#hclear').onclick = () => { HIST = []; saveHist(); drawHist(); };
+
+/* ---------- batch ---------- */
+let BATCH = [];
+function parseCSV(text) {
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+$('#bfile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const text = await f.text(); const rows = parseCSV(text);
+  if (!rows.length) return;
+  const h = rows[0].map(x => x.trim().toLowerCase());
+  let si = h.indexOf('subject'), bi = h.indexOf('body'), start = 1;
+  if (bi < 0) { bi = rows[0].length > 1 ? 1 : 0; si = rows[0].length > 1 ? 0 : -1; start = 0; }
+  $('#bin').value = rows.slice(start, start + 1000).map(r => ((si >= 0 ? (r[si] || '').replace(/\|/g, '/').replace(/\s+/g, ' ').trim() + ' | ' : '') + (r[bi] || '').replace(/\s+/g, ' ').trim())).join('\n');
+  $('#binfo').textContent = `${f.name}: ${Math.min(rows.length - start, 1000)} qator yuklandi`;
+  e.target.value = '';
+};
+$('#bgo').onclick = async () => {
+  const err = $('#berr'); err.classList.add('hidden');
+  const lines = $('#bin').value.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 1000);
+  const tickets = lines.map(l => { const i = l.indexOf('|'); return i >= 0 ? {subject: l.slice(0, i).trim().slice(0, 300), body: l.slice(i + 1).trim().slice(0, 5000)} : {subject: '', body: l.slice(0, 5000)}; });
+  const bad = tickets.findIndex(t => t.body.length < 10);
+  if (!tickets.length) { err.textContent = 'Kamida bitta murojaat kiriting.'; err.classList.remove('hidden'); return; }
+  if (bad >= 0) { err.textContent = `${bad + 1}-qator: matn kamida 10 belgi bo'lishi kerak.`; err.classList.remove('hidden'); return; }
+  const btn = $('#bgo'); btn.disabled = true;
+  BATCH = [];
+  try {
+    for (let i = 0; i < tickets.length; i += 100) {
+      btn.innerHTML = `<span class="spin"></span> ${Math.min(i + 100, tickets.length)} / ${tickets.length}`;
+      const chunk = tickets.slice(i, i + 100);
+      const res = await api('/predict/batch', {method:'POST', body: JSON.stringify({tickets: chunk})});
+      res.forEach((r, j) => BATCH.push({...chunk[j], ...r}));
+    }
+    renderBatch();
+  } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); if (BATCH.length) renderBatch(); }
+  finally { btn.disabled = false; btn.textContent = 'Toifalash'; }
+};
+function renderBatch() {
+  const n = BATCH.length, routed = BATCH.filter(r => r.route_to_operator).length;
+  const avg = BATCH.reduce((s, r) => s + r.confidence, 0) / n;
+  const byQ = {}; BATCH.forEach(r => byQ[r.queue] = (byQ[r.queue] || 0) + 1);
+  const qs = Object.entries(byQ).sort((a, b) => b[1] - a[1]);
+  $('#bout').innerHTML = `
+    <div class="stats">
+      <div class="stat"><b>${n}</b><span>Murojaatlar</span></div>
+      <div class="stat"><b>${n - routed}</b><span>Avtomatik yo'naltirildi</span></div>
+      <div class="stat"><b>${routed}</b><span>Operatorga</span></div>
+      <div class="stat"><b>${pct(avg)}</b><span>O'rtacha ishonch</span></div>
+    </div>
+    <div class="section"><h3>Navbatlar taqsimoti</h3><div class="bars">${bars(qs.map(([q, c]) => [q, c / n, c]))}</div></div>
+    <div class="section tbl"><table><thead><tr><th>#</th><th>Murojaat</th><th>Navbat</th><th>Ishonch</th><th>Til</th><th>Holat</th></tr></thead><tbody>
+    ${BATCH.map((r, i) => `<tr><td class="num">${i + 1}</td><td><div class="trunc" title="${esc(r.body)}">${r.subject ? '<b>' + esc(r.subject) + '</b> — ' : ''}${esc(r.body)}</div></td>
+      <td>${esc(r.queue)}</td><td class="num">${pct(r.confidence)}</td><td>${esc(r.language)}</td>
+      <td>${r.route_to_operator ? '<span class="badge warn">operator</span>' : '<span class="badge ok">avto</span>'}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  $('#bdl').classList.remove('hidden');
+}
+$('#bdl').onclick = () => {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const head = ['subject', 'body', 'queue', 'confidence', 'top2', 'top3', 'language', 'route_to_operator', 'threshold', 'request_id'];
+  const lines = [head.join(',')].concat(BATCH.map(r => [r.subject, r.body, r.queue, r.confidence, r.top3[1]?.queue, r.top3[2]?.queue, r.language, r.route_to_operator, r.threshold, r.request_id].map(q).join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], {type: 'text/csv;charset=utf-8'}));
+  a.download = 'ticketrouter_natijalar.csv'; a.click(); URL.revokeObjectURL(a.href);
+};
+
+/* ---------- model ---------- */
+async function loadModel() {
+  try {
+    const m = await api('/model/info');
+    $('#minfo').innerHTML = `<dl class="kv">
+      <dt>Versiya</dt><dd>v${esc(m.model_version)}</dd>
+      <dt>Algoritm</dt><dd>${esc(m.algorithm)}</dd>
+      <dt>Navbatlar soni</dt><dd>${m.classes.length}</dd>
+      <dt>Umumiy chegara</dt><dd>${pct(m.route_threshold)}</dd>
+      <dt>Yuklangan vaqt</dt><dd>${esc(m.loaded_at)}</dd></dl>`;
+    $('#mthr').innerHTML = bars(Object.entries(m.per_language_threshold).map(([l, v]) => [LANG[l] || l, v]));
+    $('#mcls').innerHTML = m.classes.map(c => `<span class="tag" title="${esc(QUZ[c] || '')}">${esc(c)}</span>`).join('');
+  } catch (e) { $('#minfo').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+/* ---------- monitoring ---------- */
+const host = location.hostname;
+$('#mlinks').innerHTML = [
+  ['Grafana', 3000, 'Dashboardlar va ogohlantirishlar'],
+  ['Prometheus', 9090, 'Metrikalar va alert qoidalari'],
+  ['MLflow', 5000, 'Tajribalar va model versiyalari'],
+  ['API hujjatlari', 8000, 'Swagger UI (/docs)', '/docs'],
+].map(([n, p, d, path = '']) => `<a href="${location.protocol}//${host}:${p}${path}" target="_blank" rel="noopener"><b>${n} ↗</b><span>${d} · :${p}</span></a>`).join('');
+
+function parseProm(text) {
+  const out = [];
+  text.split('\n').forEach(l => {
+    if (!l || l[0] === '#') return;
+    const m = l.match(/^([a-zA-Z_:][\w:]*)(\{([^}]*)\})?\s+([^\s]+)/); if (!m) return;
+    const labels = {}; (m[3] || '').replace(/(\w+)="((?:[^"\\]|\\.)*)"/g, (_, k, v) => labels[k] = v);
+    out.push({name: m[1], labels, value: parseFloat(m[4])});
+  });
+  return out;
+}
+let mtimer;
+async function loadMetrics() {
+  clearTimeout(mtimer);
+  if ($('#tab-monitor').classList.contains('hidden')) return;
+  try {
+    const r = await fetch(API + '/metrics'); const P = parseProm(await r.text());
+    const sum = (f) => P.filter(f).reduce((s, x) => s + x.value, 0);
+    const preds = P.filter(x => x.name === 'predictions_total');
+    const total = preds.reduce((s, x) => s + x.value, 0);
+    const routed = preds.filter(x => x.labels.routed === 'True').reduce((s, x) => s + x.value, 0);
+    const reqs = sum(x => x.name === 'api_requests_total' && x.labels.endpoint.startsWith('/predict'));
+    const errs = sum(x => x.name === 'api_requests_total' && x.labels.endpoint.startsWith('/predict') && x.labels.status >= '400');
+    const cs = sum(x => x.name === 'prediction_confidence_sum'), cc = sum(x => x.name === 'prediction_confidence_count');
+    $('#mstats').innerHTML = `
+      <div class="stat"><b>${total}</b><span>Bashoratlar</span></div>
+      <div class="stat"><b>${total ? pct(routed / total) : '—'}</b><span>Operatorga ulushi</span></div>
+      <div class="stat"><b>${cc ? pct(cs / cc) : '—'}</b><span>O'rtacha ishonch</span></div>
+      <div class="stat"><b>${errs}</b><span>Xato so'rovlar (4xx/5xx) / ${reqs}</span></div>`;
+    const agg = (key) => { const o = {}; preds.forEach(x => o[x.labels[key]] = (o[x.labels[key]] || 0) + x.value); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
+    const q = agg('queue'), l = agg('language');
+    $('#mq').innerHTML = q.length ? bars(q.map(([k, v]) => [k, v / total, v])) : '<div class="hint">Hali bashorat yo\'q</div>';
+    const lr = l.map(([k, v]) => [LANG[k] || k, v / total, v]);
+    if (total) lr.push(['Operatorga yuborilgan', routed / total, routed]);
+    $('#ml').innerHTML = lr.length ? bars(lr) : '<div class="hint">Hali bashorat yo\'q</div>';
+    $('#mupd').textContent = 'API 2 ta worker bilan ishlaydi, bu raqamlar tasodifiy bittasiniki (taxminiy) — aniq yig\'indi Grafana\'da · har 5 soniyada yangilanadi · ' + new Date().toLocaleTimeString();
+  } catch (e) { $('#mupd').textContent = 'Metrikalarni olib bo\'lmadi: ' + e.message; }
+  mtimer = setTimeout(loadMetrics, 5000);
+}
+
+/* ---------- init ---------- */
+drawHist(); health(); setInterval(health, 15000);
+try { const t = localStorage.getItem('tr_tab'); if (t && t !== 'single') document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
+</script>
+</body>
+</html>
