@@ -1,4 +1,4 @@
-# TicketRouter AI — YKL, variant 23
+# TicketRouter AI
 
 Qo'llab-quvvatlash murojaatlarini avtomatik toifalash va yo'naltirish: ma'lumot → model → API → monitoring → adolatlilik.
 
