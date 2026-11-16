@@ -1,0 +1,165 @@
+{
+  "thresholds": {
+    "psi": 0.2,
+    "min_drifted_features": 3,
+    "route_rate_ratio": 1.5,
+    "f1_drop": 0.05
+  },
+  "reference_route_rate": 0.8403157255616271,
+  "days": [
+    {
+      "day": 1,
+      "n": 550,
+      "psi": {
+        "text_len": 0.016720349074434766,
+        "oov_rate": 0.03328866741078982,
+        "confidence": 0.012963949728007787,
+        "pred_queue": 0.008764033024399211,
+        "language": 0.003225114362820514,
+        "customer_type": 1.4747167741648935e-06,
+        "script": 0.003296441051578651
+      },
+      "ks_pvalue": {
+        "text_len": 0.45867046284547114,
+        "oov_rate": 0.2488168942550662,
+        "confidence": 0.700677341605387
+      },
+      "drifted_features": [],
+      "route_rate": 0.84,
+      "f1_macro_labels": 0.5162817460849352,
+      "alerts": [],
+      "retrain_triggered": false
+    },
+    {
+      "day": 2,
+      "n": 549,
+      "psi": {
+        "text_len": 0.026731378562811832,
+        "oov_rate": 0.01364026686952681,
+        "confidence": 0.006460774364735283,
+        "pred_queue": 0.02500832617183282,
+        "language": 0.001388512986773847,
+        "customer_type": 0.0004398811121188964,
+        "script": 0.0009226962606843155
+      },
+      "ks_pvalue": {
+        "text_len": 0.4984713297485786,
+        "oov_rate": 0.9337307820297333,
+        "confidence": 0.830531682999651
+      },
+      "drifted_features": [],
+      "route_rate": 0.8506375227686703,
+      "f1_macro_labels": 0.5101637661358526,
+      "alerts": [],
+      "retrain_triggered": false
+    },
+    {
+      "day": 3,
+      "n": 549,
+      "psi": {
+        "text_len": 0.024823161978040534,
+        "oov_rate": 0.01441922447716711,
+        "confidence": 0.00946432251100195,
+        "pred_queue": 0.04163383865462809,
+        "language": 0.004877724860164016,
+        "customer_type": 0.002549432105254413,
+        "script": 0.00024481735232185223
+      },
+      "ks_pvalue": {
+        "text_len": 0.5405747750039595,
+        "oov_rate": 0.33923855580787465,
+        "confidence": 0.9452600056023435
+      },
+      "drifted_features": [],
+      "route_rate": 0.8579234972677595,
+      "f1_macro_labels": 0.5304918613449805,
+      "alerts": [],
+      "retrain_triggered": false
+    },
+    {
+      "day": 4,
+      "n": 686,
+      "psi": {
+        "text_len": 0.08991262928912443,
+        "oov_rate": 0.16652004667203468,
+        "confidence": 0.06852284801359088,
+        "pred_queue": 0.0084846134081409,
+        "language": 0.22297046264080808,
+        "customer_type": 0.01937246578799963,
+        "script": 0.369212288091037
+      },
+      "ks_pvalue": {
+        "text_len": 2.1955942062369774e-10,
+        "oov_rate": 7.46165226184566e-12,
+        "confidence": 3.3049265267967153e-08
+      },
+      "drifted_features": [
+        "language",
+        "script"
+      ],
+      "route_rate": 0.7521865889212828,
+      "f1_macro_labels": 0.5507077045080199,
+      "alerts": [],
+      "retrain_triggered": false
+    },
+    {
+      "day": 5,
+      "n": 741,
+      "psi": {
+        "text_len": 0.14505724482668447,
+        "oov_rate": 0.30582681709229276,
+        "confidence": 0.07725215445104326,
+        "pred_queue": 0.036685059843561504,
+        "language": 0.38291696237601314,
+        "customer_type": 0.04670939793591707,
+        "script": 0.47591716929505756
+      },
+      "ks_pvalue": {
+        "text_len": 2.1888452268484547e-15,
+        "oov_rate": 2.1564091343828858e-29,
+        "confidence": 1.6247013331563484e-08
+      },
+      "drifted_features": [
+        "oov_rate",
+        "language",
+        "script"
+      ],
+      "route_rate": 0.7395411605937922,
+      "f1_macro_labels": 0.5531409593589302,
+      "alerts": [
+        "DATA_DRIFT"
+      ],
+      "retrain_triggered": true
+    },
+    {
+      "day": 6,
+      "n": 796,
+      "psi": {
+        "text_len": 0.11752645236647644,
+        "oov_rate": 0.44233635637492574,
+        "confidence": 0.10235437023117096,
+        "pred_queue": 0.02181711702830097,
+        "language": 0.5161008341858003,
+        "customer_type": 0.0679622181292289,
+        "script": 0.6048579274345591
+      },
+      "ks_pvalue": {
+        "text_len": 8.046360919601779e-17,
+        "oov_rate": 1.021698888318785e-43,
+        "confidence": 2.2223626622823087e-12
+      },
+      "drifted_features": [
+        "oov_rate",
+        "language",
+        "script"
+      ],
+      "route_rate": 0.7324120603015075,
+      "f1_macro_labels": 0.4087933862897263,
+      "alerts": [
+        "DATA_DRIFT",
+        "CONCEPT_DRIFT_F1_DROP"
+      ],
+      "retrain_triggered": true
+    }
+  ]
+}

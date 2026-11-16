@@ -1,0 +1,22 @@
+PASSED tests/test_api.py::test_health
+PASSED tests/test_api.py::test_predict_ok_contract
+PASSED tests/test_api.py::test_predict_requires_api_key
+PASSED tests/test_api.py::test_predict_validation_short_body
+PASSED tests/test_api.py::test_predict_validation_too_long
+PASSED tests/test_api.py::test_predict_bad_language
+PASSED tests/test_api.py::test_batch
+PASSED tests/test_api.py::test_batch_limit
+PASSED tests/test_api.py::test_metrics_and_info
+PASSED tests/test_api.py::test_pii_masking_and_language
+PASSED tests/test_data.py::test_splits_disjoint
+PASSED tests/test_data.py::test_split_proportions
+PASSED tests/test_data.py::test_stratification_keeps_class_shares
+PASSED tests/test_data.py::test_schema_passes_on_processed
+PASSED tests/test_data.py::test_schema_rejects_bad_rows
+PASSED tests/test_data.py::test_uz_generator_reproducible_and_valid
+PASSED tests/test_model.py::test_beats_baseline
+PASSED tests/test_model.py::test_test_set_quality_floor
+PASSED tests/test_model.py::test_invariance_to_pii
+PASSED tests/test_model.py::test_directional_billing
+PASSED tests/test_model.py::test_probabilities_valid
+21 passed in 6.96s

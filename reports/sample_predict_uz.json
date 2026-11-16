@@ -1,0 +1,37 @@
+{
+    "request_id": "4cd910756b23",
+    "queue": "Billing and Payments",
+    "confidence": 0.905,
+    "top3": [
+        {
+            "queue": "Billing and Payments",
+            "probability": 0.905
+        },
+        {
+            "queue": "Service Outages and Maintenance",
+            "probability": 0.0417
+        },
+        {
+            "queue": "Product Support",
+            "probability": 0.0188
+        }
+    ],
+    "route_to_operator": false,
+    "threshold": 0.9,
+    "language": "uz",
+    "reasons": [
+        {
+            "feature": "marta yechib",
+            "contribution": 0.28
+        },
+        {
+            "feature": "yechib olindi",
+            "contribution": 0.28
+        },
+        {
+            "feature": "so ikki",
+            "contribution": 0.28
+        }
+    ],
+    "model_version": "1.0.0"
+}

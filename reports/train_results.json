@@ -1,0 +1,149 @@
+{
+  "candidates": {
+    "baseline_lr": {
+      "f1_macro": 0.3607879670067172,
+      "accuracy": 0.3928354584092289,
+      "top3_acc": 0.7173649058894961,
+      "cv_f1_macro_mean": 0.3444322456672855,
+      "cv_f1_macro_std": 0.006514447548078675,
+      "fit_s": 8.532251119613647
+    },
+    "cnb": {
+      "f1_macro": 0.41947033500798947,
+      "accuracy": 0.4893746205221615,
+      "top3_acc": 0.7607771706132362,
+      "cv_f1_macro_mean": 0.38637307028261086,
+      "cv_f1_macro_std": 0.012923848083154341,
+      "fit_s": 4.035678863525391
+    },
+    "svm_word_char": {
+      "f1_macro": 0.4731021736236194,
+      "accuracy": 0.5297510625379478,
+      "top3_acc": 0.8281724347298117,
+      "cv_f1_macro_mean": 0.4361440453994345,
+      "cv_f1_macro_std": 0.006787811867638743,
+      "fit_s": 82.56292414665222
+    },
+    "lr_word_char": {
+      "f1_macro": 0.5026291467362235,
+      "accuracy": 0.5233758348512447,
+      "top3_acc": 0.8148148148148148,
+      "cv_f1_macro_mean": 0.4600986824290195,
+      "cv_f1_macro_std": 0.008976613774956224,
+      "fit_s": 170.78687405586243
+    },
+    "lr_word_char_optuna": {
+      "f1_macro": 0.5097057294889187,
+      "accuracy": 0.5297510625379478,
+      "top3_acc": 0.8163327261687917,
+      "params": {
+        "C": 15.910163432825543,
+        "min_df": 1,
+        "cw": "balanced"
+      }
+    }
+  },
+  "optuna_trials": [
+    {
+      "n": 0,
+      "C": 4.157228379157012,
+      "min_df": 4,
+      "cw": "balanced",
+      "f1_macro": 0.48342295681751446
+    },
+    {
+      "n": 1,
+      "C": 1.2360103101114301,
+      "min_df": 3,
+      "cw": null,
+      "f1_macro": 0.39759889360630224
+    },
+    {
+      "n": 2,
+      "C": 6.280013226341347,
+      "min_df": 2,
+      "cw": null,
+      "f1_macro": 0.4649596076381427
+    },
+    {
+      "n": 3,
+      "C": 18.73012070751481,
+      "min_df": 2,
+      "cw": null,
+      "f1_macro": 0.48269002662021976
+    },
+    {
+      "n": 4,
+      "C": 15.910163432825543,
+      "min_df": 1,
+      "cw": "balanced",
+      "f1_macro": 0.5097057294889187
+    },
+    {
+      "n": 5,
+      "C": 14.502389117221455,
+      "min_df": 3,
+      "cw": "balanced",
+      "f1_macro": 0.500098621095934
+    },
+    {
+      "n": 6,
+      "C": 23.674677372771946,
+      "min_df": 1,
+      "cw": "balanced",
+      "f1_macro": 0.5082906125976826
+    },
+    {
+      "n": 7,
+      "C": 17.602706172819126,
+      "min_df": 2,
+      "cw": "balanced",
+      "f1_macro": 0.508473584095506
+    },
+    {
+      "n": 8,
+      "C": 0.814653822573003,
+      "min_df": 3,
+      "cw": "balanced",
+      "f1_macro": 0.43119747122222735
+    },
+    {
+      "n": 9,
+      "C": 15.03068139150215,
+      "min_df": 2,
+      "cw": null,
+      "f1_macro": 0.4831952607919877
+    },
+    {
+      "n": 10,
+      "C": 1.330905585846239,
+      "min_df": 1,
+      "cw": "balanced",
+      "f1_macro": 0.4556805234626139
+    },
+    {
+      "n": 11,
+      "C": 7.671630994835172,
+      "min_df": 1,
+      "cw": "balanced",
+      "f1_macro": 0.5015134844877899
+    }
+  ],
+  "best_params": {
+    "C": 15.910163432825543,
+    "min_df": 1,
+    "cw": "balanced"
+  },
+  "classes": [
+    "Technical Support",
+    "Product Support",
+    "Customer Service",
+    "IT Support",
+    "Billing and Payments",
+    "Returns and Exchanges",
+    "Service Outages and Maintenance",
+    "Sales and Pre-Sales",
+    "Human Resources",
+    "General Inquiry"
+  ]
+}

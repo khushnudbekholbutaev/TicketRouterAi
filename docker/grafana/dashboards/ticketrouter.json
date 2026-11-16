@@ -1,0 +1,164 @@
+{
+ "title": "TicketRouter AI \u2014 monitoring",
+ "uid": "ticketrouter",
+ "schemaVersion": 39,
+ "refresh": "30s",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "panels": [
+  {
+   "id": 1,
+   "title": "So'rovlar/s (endpoint bo'yicha)",
+   "type": "timeseries",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 0
+   },
+   "targets": [
+    {
+     "expr": "sum by (endpoint) (rate(api_requests_total[5m]))",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "title": "Latency p50 / p95 / p99 (/predict)",
+   "type": "timeseries",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 0
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.5, sum(rate(api_latency_seconds_bucket{endpoint=\"/predict\"}[5m])) by (le))",
+     "refId": "A"
+    },
+    {
+     "expr": "histogram_quantile(0.95, sum(rate(api_latency_seconds_bucket{endpoint=\"/predict\"}[5m])) by (le))",
+     "refId": "B"
+    },
+    {
+     "expr": "histogram_quantile(0.99, sum(rate(api_latency_seconds_bucket{endpoint=\"/predict\"}[5m])) by (le))",
+     "refId": "C"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "title": "Xatolar ulushi (5xx)",
+   "type": "stat",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 8
+   },
+   "targets": [
+    {
+     "expr": "sum(rate(api_requests_total{status=~\"5..\"}[5m])) / sum(rate(api_requests_total[5m]))",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "title": "Toifalar taqsimoti (bashorat)",
+   "type": "piechart",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 8
+   },
+   "targets": [
+    {
+     "expr": "sum by (queue) (rate(predictions_total[1h]))",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "title": "Operatorga yo'naltirish ulushi (til bo'yicha)",
+   "type": "timeseries",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 16
+   },
+   "targets": [
+    {
+     "expr": "sum by (language) (rate(predictions_total{routed=\"True\"}[1h])) / sum by (language) (rate(predictions_total[1h]))",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "title": "Ishonch taqsimoti",
+   "type": "heatmap",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 16
+   },
+   "targets": [
+    {
+     "expr": "sum by (le) (rate(prediction_confidence_bucket[1h]))",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "title": "Matn uzunligi taqsimoti",
+   "type": "heatmap",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 24
+   },
+   "targets": [
+    {
+     "expr": "sum by (le) (rate(ticket_text_length_bucket[1h]))",
+     "refId": "A"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "title": "Drift PSI (xususiyatlar)",
+   "type": "bargauge",
+   "datasource": "Prometheus",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 24
+   },
+   "targets": [
+    {
+     "expr": "drift_psi",
+     "refId": "A"
+    }
+   ]
+  }
+ ]
+}

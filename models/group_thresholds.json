@@ -1,0 +1,8 @@
+{
+  "per_language_threshold": {
+    "de": 0.91,
+    "en": 0.83,
+    "uz": 0.9
+  },
+  "target_auto_accuracy": 0.9049429657794676
+}

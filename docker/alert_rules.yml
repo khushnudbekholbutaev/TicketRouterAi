@@ -1,0 +1,28 @@
+groups:
+- name: ticket_router
+  rules:
+  - alert: HighLatencyP95
+    expr: histogram_quantile(0.95, sum(rate(api_latency_seconds_bucket{endpoint="/predict"}[5m])) by (le)) > 0.5
+    for: 5m
+    labels: { severity: warning }
+    annotations: { summary: "p95 latency > 500 ms" }
+  - alert: HighErrorRate
+    expr: sum(rate(api_requests_total{status=~"5.."}[5m])) / sum(rate(api_requests_total[5m])) > 0.02
+    for: 5m
+    labels: { severity: critical }
+    annotations: { summary: "Xatolar ulushi > 2 %" }
+  - alert: RouteRateHigh
+    expr: sum(rate(predictions_total{routed="True"}[1h])) / sum(rate(predictions_total[1h])) > 0.95
+    for: 30m
+    labels: { severity: warning }
+    annotations: { summary: "Operatorga yo'naltirish ulushi keskin oshdi (ishonch pasaydi)" }
+  - alert: LanguageRouteGap
+    expr: max(sum by (language) (rate(predictions_total{routed="True"}[6h])) / sum by (language) (rate(predictions_total[6h])))
+          - min(sum by (language) (rate(predictions_total{routed="True"}[6h])) / sum by (language) (rate(predictions_total[6h]))) > 0.5
+    for: 1h
+    labels: { severity: warning }
+    annotations: { summary: "Tillar bo'yicha yo'naltirish farqi > 0.5 (real vaqtda adolatlilik)" }
+  - alert: DataDriftPSI
+    expr: count(drift_psi > 0.2) >= 3
+    labels: { severity: warning }
+    annotations: { summary: "PSI > 0.2 kamida 3 ta xususiyatda — qayta o'qitish triggeri" }

@@ -1,0 +1,8 @@
+api_latency_seconds_count{endpoint="/health"} 2.0
+api_latency_seconds_count{endpoint="/predict"} 713.0
+predictions_total{language="uz",queue="Billing and Payments",routed="False"} 1.0
+predictions_total{language="en",queue="Billing and Payments",routed="False"} 22.0
+predictions_total{language="de",queue="Returns and Exchanges",routed="True"} 9.0
+predictions_total{language="de",queue="Customer Service",routed="True"} 27.0
+predictions_total{language="en",queue="Technical Support",routed="True"} 140.0
+predictions_total{language="en",queue="IT Support",routed="True"} 47.0

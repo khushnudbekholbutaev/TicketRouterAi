@@ -1,0 +1,8 @@
+global: { scrape_interval: 15s, evaluation_interval: 30s }
+rule_files: [alert_rules.yml]
+scrape_configs:
+  - job_name: ticket_router_api
+    metrics_path: /metrics
+    static_configs: [{ targets: ["api:8000"] }]
+  - job_name: drift_exporter          # kunlik drift.py natijalarini textfile/pushgateway orqali beradi
+    static_configs: [{ targets: ["pushgateway:9091"] }]

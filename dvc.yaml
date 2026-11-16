@@ -1,0 +1,28 @@
+stages:
+  ingest:
+    cmd: python -m src.data.ingest
+    deps: [data/raw/tickets_multilang_20k.csv, src/data/ingest.py, src/data/uz_synth.py]
+    outs: [data/processed/tickets_all.parquet]
+  split:
+    cmd: python -m src.data.split
+    deps: [data/processed/tickets_all.parquet, src/data/split.py, src/data/validate.py]
+    outs: [data/processed/train.parquet, data/processed/val.parquet, data/processed/test.parquet, data/reference/reference.parquet]
+  train:
+    cmd: python -m src.models.train
+    deps: [data/processed/train.parquet, data/processed/val.parquet, src/models/train.py]
+    outs: [models/model.joblib]
+    metrics: [reports/train_results.json]
+  evaluate:
+    cmd: python -m src.models.evaluate
+    deps: [models/model.joblib, data/processed/test.parquet, src/models/evaluate.py]
+    outs: [models/threshold.json]
+    metrics: [reports/eval_results.json]
+  fairness:
+    cmd: python -m src.models.fairness
+    deps: [models/model.joblib, models/threshold.json, src/models/fairness.py]
+    outs: [models/group_thresholds.json, models/model_reweighed.joblib]
+    metrics: [reports/fairness_results.json]
+  drift:
+    cmd: python -m src.monitoring.drift
+    deps: [models/model.joblib, data/reference/reference.parquet, src/monitoring/drift.py]
+    metrics: [reports/drift_results.json]
