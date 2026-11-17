@@ -15,7 +15,7 @@ SEED = 23
 QUEUES = ['Technical Support', 'Product Support', 'Customer Service', 'IT Support', 'Billing and Payments',
           'Returns and Exchanges', 'Service Outages and Maintenance', 'Sales and Pre-Sales', 'Human Resources',
           'General Inquiry']
-LANGS = ['en', 'de', 'uz']
+LANGS = ['en', 'de', 'uz', 'ru']
 CUSTOMER_TYPES = ['jismoniy', 'yuridik']
 # Ishonchsiz bashoratni operatorga yuborish chegarasi (evaluate.py da tanlanadi va threshold.json ga yoziladi)
 DEFAULT_ROUTE_THRESHOLD = 0.35

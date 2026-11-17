@@ -8,6 +8,7 @@ import re
 import pandas as pd
 
 from src.config import INTERIM, RAW_CSV, SEED
+from src.data.ru_synth import generate as generate_ru
 from src.data.uz_synth import generate
 
 SOURCE_URL = ('https://huggingface.co/datasets/Tobi-Bueck/customer-support-tickets/resolve/main/'
@@ -34,13 +35,15 @@ def main():
     df['customer_type'] = (df['subject'] + ' ' + df['body']).str.contains(ORG, regex=True).map({True: 'yuridik', False: 'jismoniy'})
     df['source'] = 'hf_tickets_20k'
     uz = generate(n=2000, seed=SEED)
-    all_df = pd.concat([df, uz], ignore_index=True)
+    ru = generate_ru(n=2000, seed=SEED + 6)
+    all_df = pd.concat([df, uz, ru], ignore_index=True)
     all_df.insert(0, 'ticket_id', [f'T{i:06d}' for i in range(len(all_df))])
     INTERIM.parent.mkdir(parents=True, exist_ok=True)
     all_df.to_parquet(INTERIM, index=False)
     prov = {'source_url': SOURCE_URL, 'license': 'CC BY-NC 4.0', 'downloaded_utc': dt.datetime.fromtimestamp(
         RAW_CSV.stat().st_mtime, dt.UTC).isoformat(), 'raw_sha256': sha256(RAW_CSV), 'raw_rows': len(raw),
         'uz_synthetic_rows': len(uz), 'uz_generator': 'src/data/uz_synth.py (seed=%d)' % SEED,
+        'ru_synthetic_rows': len(ru), 'ru_generator': 'src/data/ru_synth.py (seed=%d)' % (SEED + 6),
         'interim_sha256': sha256(INTERIM), 'rows_total': len(all_df)}
     json.dump(prov, open(RAW_CSV.parent / 'provenance.json', 'w'), indent=2)
     print(json.dumps(prov, indent=2))

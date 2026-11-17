@@ -1,7 +1,7 @@
 stages:
   ingest:
     cmd: python -m src.data.ingest
-    deps: [data/raw/tickets_multilang_20k.csv, src/data/ingest.py, src/data/uz_synth.py]
+    deps: [data/raw/tickets_multilang_20k.csv, src/data/ingest.py, src/data/uz_synth.py, src/data/ru_synth.py]
     outs: [data/processed/tickets_all.parquet]
   split:
     cmd: python -m src.data.split

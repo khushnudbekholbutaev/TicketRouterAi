@@ -1,5 +1,5 @@
 """Bosqich 5: adolatlilik tahlili (Fairlearn MetricFrame) va mitigatsiya.
-Himoyalangan atributlar: til (en/de/uz) va mijoz turi (jismoniy/yuridik).
+Himoyalangan atributlar: til (en/de/uz/ru) va mijoz turi (jismoniy/yuridik).
 Metrikalar: guruhlar bo'yicha accuracy va F1-macro farqi / nisbati, operatorga yo'naltirish ulushi farqi
 (ko'p sinfli vazifada "selection rate" analogi), avtomatik qismdagi aniqlik farqi.
 Mitigatsiya: (a) pre-processing — Reweighing (til × toifa bo'yicha og'irliklar);

@@ -1,5 +1,5 @@
 PY=.venv/bin/python
-.PHONY: all data train evaluate fairness drift test serve load report lint
+.PHONY: all data train evaluate fairness drift test serve load report lint user
 all: data train evaluate fairness drift test
 data:      ; $(PY) -m src.data.ingest && $(PY) -m src.data.split
 train:     ; $(PY) -m src.models.train
@@ -11,3 +11,4 @@ serve:     ; .venv/bin/uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 load:      ; $(PY) tests/loadtest.py 1000 20
 report:    ; $(PY) make_report.py
 lint:      ; ruff check src tests
+user:      ; $(PY) -m src.api.auth add $(NAME)   # make user NAME=admin

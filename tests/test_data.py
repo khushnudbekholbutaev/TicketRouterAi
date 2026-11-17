@@ -3,6 +3,7 @@ import pandera.errors
 import pytest
 
 from src.config import PROCESSED, QUEUES
+from src.data.ru_synth import generate as generate_ru
 from src.data.uz_synth import generate, to_cyr
 from src.data.validate import validate
 
@@ -46,3 +47,13 @@ def test_uz_generator_reproducible_and_valid():
     assert a.equals(b)
     assert set(a['queue']) <= set(QUEUES)
     assert to_cyr("o'zbek") == 'ўзбек'
+
+
+def test_ru_generator_reproducible_and_valid():
+    a, b = generate_ru(50, seed=1), generate_ru(50, seed=1)
+    assert a.equals(b)
+    assert set(a['queue']) <= set(QUEUES) and set(a['language']) == {'ru'} and set(a['script']) == {'cyrl'}
+
+
+def test_all_languages_present(parts):
+    assert set(parts['train']['language']) == {'en', 'de', 'uz', 'ru'}

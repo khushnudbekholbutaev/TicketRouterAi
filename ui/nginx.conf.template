@@ -5,8 +5,29 @@ server {
     index index.html;
     client_max_body_size 2m;
 
-    # API proksi: brauzer API-kalitni bilmaydi, nginx uni o'zi qo'shadi
+    # Sessiya tekshiruvi: har bir himoyalangan /api so'rovidan oldin API'dagi /auth/check chaqiriladi
+    location = /_auth {
+        internal;
+        proxy_pass http://api:8000/auth/check;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    # Login / logout / check — ochiq (ichida o'z tekshiruvi bor)
+    location /api/auth/ {
+        proxy_pass http://api:8000/auth/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /api/health {
+        proxy_pass http://api:8000/health;
+    }
+
+    # Qolgan API — faqat tizimga kirgan foydalanuvchilar uchun. API-kalitni brauzer emas, nginx qo'shadi
     location /api/ {
+        auth_request /_auth;
         proxy_pass http://api:8000/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -17,5 +38,6 @@ server {
 
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
     }
 }

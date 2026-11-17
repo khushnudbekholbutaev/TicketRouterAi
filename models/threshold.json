@@ -1,8 +1,8 @@
 {
-  "route_threshold": 0.85,
+  "route_threshold": 0.9,
   "selected_on": "val",
   "C_wrong": 5.0,
   "C_operator": 1.0,
-  "val_cost": 0.9162112932604736,
-  "val_coverage": 0.1596842744383728
+  "val_cost": 0.909495962127541,
+  "val_coverage": 0.16569200779727095
 }

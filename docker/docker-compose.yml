@@ -2,6 +2,10 @@ services:
   api:
     build: { context: .., dockerfile: docker/Dockerfile }
     env_file: ../.env
+    environment:
+      AUTH_USERS_FILE: /app/auth/users.json
+    volumes:
+      - ../auth:/app/auth:ro
     ports: ["8000:8000"]
     restart: unless-stopped
   prometheus:

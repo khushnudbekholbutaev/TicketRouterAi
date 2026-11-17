@@ -1,5 +1,6 @@
 """Bosqich 7: FastAPI xizmati — murojaatni toifalash va yo'naltirish.
-Endpointlar: POST /predict, POST /predict/batch, GET /health, GET /metrics, GET /model/info.
+Endpointlar: POST /predict, POST /predict/batch, GET /health, GET /metrics, GET /model/info,
+POST /auth/login, POST /auth/logout, GET /auth/check (UI login).
 Xavfsizlik: X-API-Key, rate limiting (slowapi), kiritma hajmi cheklovi, loglarda PII maskalash."""
 import hmac
 import json
@@ -20,6 +21,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from src.api.auth import router as auth_router
 from src.config import MODELS
 from src.models.explain import Explainer
 
@@ -50,9 +52,14 @@ def mask_pii(s: str) -> str:
 
 UZ = re.compile(r"(\b(va|uchun|bilan|iltimos|kerak|yordam|murojaat|qilish|bo'yicha|emas)\b|[ўғқҳ]|o'|g')", re.I)
 DE = re.compile(r'(\b(und|nicht|ist|bitte|wir|unser|ich|der|die|das|mit)\b|[äöüß])', re.I)
+CYR = re.compile(r'[а-яё]', re.I)
+UZ_CYR = re.compile(r'[ўғқҳ]', re.I)
 
 
 def detect_language(t: str) -> str:
+    letters = sum(c.isalpha() for c in t) or 1
+    if len(CYR.findall(t)) / letters > 0.5 and not UZ_CYR.search(t):  # kirill, lekin o'zbekcha harflarsiz
+        return 'ru'
     uz, de = len(UZ.findall(t)), len(DE.findall(t))
     if uz >= 2 and uz >= de:
         return 'uz'
@@ -62,7 +69,7 @@ def detect_language(t: str) -> str:
 class Ticket(BaseModel):
     subject: str = Field('', max_length=300)
     body: str = Field(min_length=10, max_length=5000)
-    language: Optional[Literal['en', 'de', 'uz']] = None
+    language: Optional[Literal['en', 'de', 'uz', 'ru']] = None
     customer_type: Optional[Literal['jismoniy', 'yuridik']] = None
 
 
@@ -113,6 +120,7 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title='TicketRouter AI', version=MODEL_VERSION, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.include_router(auth_router)
 
 
 def check_api_key(x_api_key: str = Header(default='')):

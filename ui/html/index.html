@@ -91,6 +91,15 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .hist-item .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
 .spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:r .7s linear infinite;vertical-align:-2px}
 @keyframes r{to{transform:rotate(360deg)}}
+#login{position:fixed;inset:0;background:var(--bg);z-index:50;display:grid;place-items:center;padding:16px}
+#login .card{width:100%;max-width:380px;padding:28px}
+#login .brand{justify-content:center;font-size:18px;margin-bottom:6px}
+#login .sub{text-align:center;color:var(--muted);margin:0 0 20px}
+#login .btn{width:100%;margin-top:18px;padding:11px}
+.user{display:flex;align-items:center;gap:8px;margin-left:16px;font-size:13px;color:var(--muted);white-space:nowrap}
+.user b{color:var(--text);font-weight:600}
+.user button{padding:5px 10px;font-size:12px}
+body.locked header,body.locked main{display:none}
 @media (max-width:860px){
   .grid{grid-template-columns:1fr}.links{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}
   .meta{grid-template-columns:1fr 1fr}.top{height:auto;flex-wrap:wrap;padding:10px 0}nav{margin-left:0;order:3;width:100%;overflow-x:auto}
@@ -98,7 +107,19 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 }
 </style>
 </head>
-<body>
+<body class="locked">
+<div id="login">
+  <form class="card" id="lform" autocomplete="on">
+    <div class="brand"><div class="logo">TR</div>TicketRouter AI</div>
+    <p class="sub">Davom etish uchun tizimga kiring</p>
+    <label for="luser">Login</label>
+    <input id="luser" name="username" autocomplete="username" required maxlength="64">
+    <div class="field"><label for="lpass">Parol</label>
+    <input id="lpass" name="password" type="password" autocomplete="current-password" required maxlength="256"></div>
+    <button class="btn primary" id="lbtn" type="submit">Kirish</button>
+    <div class="err hidden" id="lerr"></div>
+  </form>
+</div>
 <header>
   <div class="wrap top">
     <div class="brand"><div class="logo">TR</div>TicketRouter AI</div>
@@ -109,6 +130,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
       <button data-tab="monitor">Monitoring</button>
     </nav>
     <div class="status"><span class="dot" id="hdot"></span><span id="htext">Tekshirilmoqda…</span></div>
+    <div class="user">👤 <b id="uname"></b><button class="btn" id="logout">Chiqish</button></div>
   </div>
 </header>
 
@@ -130,7 +152,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
         <div class="row">
           <div>
             <label for="lang">Til</label>
-            <select id="lang"><option value="">Avtomatik aniqlash</option><option value="uz">O'zbek</option><option value="en">English</option><option value="de">Deutsch</option></select>
+            <select id="lang"><option value="">Avtomatik aniqlash</option><option value="uz">O'zbek</option><option value="en">English</option><option value="ru">Русский</option></select>
           </div>
           <div>
             <label for="ctype">Mijoz turi</label>
@@ -161,7 +183,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
   <div class="card">
     <h2>Ommaviy toifalash</h2>
     <label for="bin">Har bir qatorda bitta murojaat. Mavzuni ajratish uchun: <code>mavzu | matn</code></label>
-    <textarea id="bin" style="min-height:170px" placeholder="Hisob | Kartamdan pul ikki marta yechib olindi, qaytarib bering&#10;Login | I cannot log into my account since yesterday, password reset does not work&#10;Lieferung | Meine Bestellung ist nicht angekommen und ich möchte das Geld zurück"></textarea>
+    <textarea id="bin" style="min-height:170px" placeholder="Hisob | Kartamdan pul ikki marta yechib olindi, qaytarib bering&#10;Login | I cannot log into my account since yesterday, password reset does not work&#10;Доставка | Мой заказ так и не пришёл, хочу вернуть деньги"></textarea>
     <div class="btns">
       <button class="btn primary" id="bgo">Toifalash</button>
       <label class="btn" style="margin:0;color:var(--text);font-size:14px">CSV yuklash<input type="file" id="bfile" accept=".csv,.txt" class="hidden"></label>
@@ -209,7 +231,7 @@ const API = '/api';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct = v => (v * 100).toFixed(1) + '%';
-const LANG = {uz:"O'zbek", en:'English', de:'Deutsch'};
+const LANG = {uz:"O'zbek", en:'English', ru:'Русский', de:'Deutsch'};
 const QUZ = {
   'Technical Support':'Texnik yordam','Product Support':'Mahsulot bo\'yicha yordam','Customer Service':'Mijozlarga xizmat',
   'IT Support':'IT yordam','Billing and Payments':'Hisob va to\'lovlar','Returns and Exchanges':'Qaytarish va almashtirish',
@@ -223,8 +245,9 @@ async function api(path, opts = {}) {
   let data; try { data = JSON.parse(txt); } catch { data = txt; }
   if (!r.ok) {
     let msg = `Xato ${r.status}`;
+    if (r.status === 401 && !path.startsWith('/auth/')) { lock(); throw new Error('Sessiya tugadi, qayta kiring.'); }
     if (r.status === 429) msg = 'So\'rovlar limiti oshib ketdi (daqiqasiga 60). Birozdan so\'ng urinib ko\'ring.';
-    else if (r.status === 401) msg = 'API-kalit noto\'g\'ri (serverdagi .env faylini tekshiring).';
+    else if (r.status === 401) msg = data && data.detail ? data.detail : 'Ruxsat yo\'q';
     else if (data && data.detail) msg += ': ' + (Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : data.detail);
     throw new Error(msg);
   }
@@ -255,7 +278,8 @@ const SAMPLES = [
   ['🇺🇿 Internet', 'Aloqa', 'Kecha kechqurundan beri internet ishlamayapti, yordam kerak', 'uz'],
   ['🇬🇧 Login', 'Account access', 'I cannot log into my account since yesterday, the password reset link does not work.', 'en'],
   ['🇬🇧 Refund', 'Return', 'I received a damaged laptop and would like to return it and get a refund.', 'en'],
-  ['🇩🇪 Rechnung', 'Rechnung', 'Ich habe eine falsche Rechnung erhalten, bitte prüfen Sie den Betrag und korrigieren Sie die Rechnung.', 'de'],
+  ['🇷🇺 Оплата', 'Оплата', 'С моей карты дважды списали деньги за подписку, пожалуйста, верните средства.', 'ru'],
+  ['🇷🇺 VPN', 'Доступ', 'Не подключается VPN, не могу войти в корпоративную почту, нужно сбросить пароль.', 'ru'],
 ];
 $('#samples').innerHTML = SAMPLES.map((s, i) => `<button class="chip" data-i="${i}">${esc(s[0])}</button>`).join('');
 $('#samples').onclick = e => {
@@ -471,9 +495,30 @@ async function loadMetrics() {
   mtimer = setTimeout(loadMetrics, 5000);
 }
 
+/* ---------- login ---------- */
+let started = false;
+function lock() { document.body.classList.add('locked'); clearTimeout(mtimer); setTimeout(() => $('#luser').focus(), 0); }
+function unlock(user) {
+  $('#uname').textContent = user; document.body.classList.remove('locked'); $('#lpass').value = '';
+  if (!started) {
+    started = true; drawHist(); health(); setInterval(health, 15000);
+    try { const t = localStorage.getItem('tr_tab'); if (t && t !== 'single') document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
+  }
+}
+$('#lform').onsubmit = async e => {
+  e.preventDefault();
+  const err = $('#lerr'); err.classList.add('hidden');
+  const btn = $('#lbtn'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Tekshirilmoqda…';
+  try {
+    const r = await api('/auth/login', {method: 'POST', body: JSON.stringify({username: $('#luser').value.trim(), password: $('#lpass').value})});
+    unlock(r.user);
+  } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); $('#lpass').select(); }
+  finally { btn.disabled = false; btn.textContent = 'Kirish'; }
+};
+$('#logout').onclick = async () => { try { await api('/auth/logout', {method: 'POST'}); } catch {} lock(); };
+
 /* ---------- init ---------- */
-drawHist(); health(); setInterval(health, 15000);
-try { const t = localStorage.getItem('tr_tab'); if (t && t !== 'single') document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
+api('/auth/check').then(r => unlock(r.user)).catch(lock);
 </script>
 </body>
 </html>

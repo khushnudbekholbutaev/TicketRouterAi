@@ -1,10 +1,10 @@
 {
-  "rows_before_dedup": 22000,
-  "rows_after_dedup": 21967,
+  "rows_before_dedup": 24000,
+  "rows_after_dedup": 23943,
   "dropped_short_or_empty": 6,
-  "rows_clean": 21961,
-  "train": 15372,
-  "val": 3294,
-  "test": 3295,
+  "rows_clean": 23937,
+  "train": 16755,
+  "val": 3591,
+  "test": 3591,
   "random_state": 23
 }
