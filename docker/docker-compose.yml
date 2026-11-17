@@ -3,11 +3,11 @@ services:
     build: { context: .., dockerfile: docker/Dockerfile }
     env_file: ../.env
     environment:
-      AUTH_USERS_FILE: /app/auth/users.json
-      HISTORY_DB: /app/var/history.db
+      APP_DB: /app/var/app.db                 # SQLite: foydalanuvchilar, sessiyalar, tarix, feedback
+      AUTH_USERS_FILE: /app/auth/users.json   # faqat bir martalik import (bazada foydalanuvchi bo'lmasa)
     volumes:
       - ../auth:/app/auth:ro
-      - history:/app/var        # so'rovlar tarixi (SQLite) — rebuild'da saqlanadi
+      - appdata:/app/var        # SQLite bazasi — rebuild'da saqlanadi
     ports: ["8000:8000"]
     restart: unless-stopped
   prometheus:
@@ -15,18 +15,23 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus:/prometheus  # metrikalar tarixi
     ports: ["9090:9090"]
+    restart: unless-stopped
   grafana:
     image: grafana/grafana:12.1.0
     ports: ["3000:3000"]
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana:/var/lib/grafana  # Grafana'ning o'z SQLite bazasi (sozlamalar, foydalanuvchilar)
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
   mlflow:
     image: ghcr.io/mlflow/mlflow:v3.18.0
     command: mlflow server --host 0.0.0.0 --backend-store-uri sqlite:////mlflow/mlflow.db
     volumes: ["../mlflow.db:/mlflow/mlflow.db"]
     ports: ["5000:5000"]
+    restart: unless-stopped
   ui:
     image: nginx:1.27-alpine
     env_file: ../.env
@@ -37,4 +42,6 @@ services:
     depends_on: [api]
     restart: unless-stopped
 volumes:
-  history:
+  appdata:
+  prometheus:
+  grafana:

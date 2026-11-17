@@ -1,7 +1,8 @@
 """Bosqich 7: FastAPI xizmati — murojaatni toifalash va yo'naltirish.
 Endpointlar: POST /predict, POST /predict/batch, GET /health, GET /metrics, GET /model/info,
 POST /auth/login, POST /auth/logout, GET /auth/check (UI login),
-GET/DELETE /history (foydalanuvchi tarixi, SQLite), GET /stats (umumiy statistika bazadan).
+GET/DELETE /history (foydalanuvchi tarixi), POST /history/{request_id}/feedback (to'g'ri navbat),
+GET /stats (statistika). Hammasi bitta SQLite bazasida (src/api/db.py).
 Xavfsizlik: X-API-Key, rate limiting (slowapi), kiritma hajmi cheklovi, loglarda PII maskalash."""
 import hmac
 import json
@@ -22,9 +23,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from src.api import history
+from src.api import auth, db, history
 from src.api.auth import router as auth_router
-from src.config import MODELS
+from src.config import MODELS, QUEUES
 from src.models.explain import Explainer
 
 MODEL_VERSION = os.environ.get('MODEL_VERSION', '1.0.0')
@@ -115,7 +116,10 @@ def load_artifacts():
 @asynccontextmanager
 async def lifespan(app):
     load_artifacts()
-    history.init_db()
+    db.migrate()
+    n = auth.import_users_file()
+    if n:
+        log.info('auth/users.json dan %d ta foydalanuvchi bazaga ko\'chirildi', n)
     yield
 
 
@@ -204,6 +208,20 @@ def get_history(limit: int = Query(20, ge=1, le=200), offset: int = Query(0, ge=
 @app.delete('/history')
 def delete_history(_=Depends(check_api_key), user: str = Depends(current_user)):
     return {'user': user, 'deleted': history.clear_for(user)}
+
+
+class Feedback(BaseModel):
+    queue: Optional[str] = None  # None — feedback'ni bekor qilish
+
+
+@app.post('/history/{request_id}/feedback')
+def post_feedback(request_id: str, fb: Feedback, _=Depends(check_api_key), user: str = Depends(current_user)):
+    if fb.queue is not None and fb.queue not in QUEUES:
+        raise HTTPException(422, f'Noma\'lum navbat: {fb.queue}')
+    item = history.set_feedback(user, request_id, fb.queue)
+    if not item:
+        raise HTTPException(404, 'So\'rov topilmadi (faqat o\'z so\'rovingizga baho berish mumkin)')
+    return item
 
 
 @app.get('/stats')

@@ -4,7 +4,7 @@ os.environ['API_KEY'] = 'test-key'
 os.environ['RATE_LIMIT'] = '1000/minute'
 import tempfile  # noqa: E402
 os.environ['AUTH_USERS_FILE'] = os.path.join(tempfile.mkdtemp(), 'users.json')
-os.environ['HISTORY_DB'] = os.path.join(tempfile.mkdtemp(), 'history.db')
+os.environ['APP_DB'] = os.path.join(tempfile.mkdtemp(), 'app.db')
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -88,46 +88,71 @@ TEST_PW = 'unit-test-' + os.urandom(4).hex()
 
 
 def test_auth_flow(client):
-    auth._save({'tester': auth.hash_password(TEST_PW)})
+    auth.set_user('tester', TEST_PW)
+    client.cookies.clear()
     assert client.get('/auth/check').status_code == 401
     assert client.post('/auth/login', json={'username': 'tester', 'password': 'wrong-password'}).status_code == 401
     assert client.post('/auth/login', json={'username': 'nobody', 'password': TEST_PW}).status_code == 401
     r = client.post('/auth/login', json={'username': 'tester', 'password': TEST_PW})
     assert r.status_code == 200 and auth.COOKIE in r.cookies
+    tok = r.cookies[auth.COOKIE]
     c = client.get('/auth/check')
     assert c.status_code == 200 and c.json()['user'] == 'tester'
     client.post('/auth/logout')
     client.cookies.clear()
     assert client.get('/auth/check').status_code == 401
+    # logout sessiyani serverda yopadi: eski cookie nusxasi ham ishlamaydi
+    assert client.get('/auth/check', cookies={auth.COOKIE: tok}).status_code == 401
+    client.cookies.clear()
 
 
-def test_auth_token_tamper_and_removed_user():
-    auth._save({'tester': auth.hash_password(TEST_PW)})
-    tok = auth.make_token('tester')
+def test_session_tamper_disable_remove_and_password_change():
+    auth.set_user('tester', TEST_PW)
+    tok = auth.create_session('tester')
     assert auth.read_token(tok) == 'tester'
     assert auth.read_token(tok[:-1] + ('0' if tok[-1] != '0' else '1')) is None
-    auth._save({})
+    assert auth.set_active('tester', False) and auth.read_token(tok) is None   # o'chirilgan -> sessiya yopiladi
+    auth.set_active('tester', True)
+    tok = auth.create_session('tester')
+    auth.set_user('tester', TEST_PW + 'x')                                       # parol almashsa -> sessiyalar yopiladi
     assert auth.read_token(tok) is None
+    tok = auth.create_session('tester')
+    assert auth.delete_user('tester') and auth.read_token(tok) is None
+    u = {x['username']: x for x in auth.list_users()}
+    assert 'tester' not in u
 
 
-def test_login_bruteforce_limit(client):
-    auth._fails.clear()
+def test_login_bruteforce_limit_is_shared_and_per_user(client):
     for _ in range(10):
         client.post('/auth/login', json={'username': 'x', 'password': 'y'}, headers={'X-Real-IP': '10.9.9.9'})
     assert client.post('/auth/login', json={'username': 'x', 'password': 'y'},
                        headers={'X-Real-IP': '10.9.9.9'}).status_code == 429
+    assert auth._too_many('10.9.9.9', 'x')  # bazada — barcha workerlar uchun umumiy
     # boshqa login (o'sha IP / proksi ortida) bloklanmaydi
-    auth._save({'tester': auth.hash_password(TEST_PW)})
+    auth.set_user('tester', TEST_PW)
     assert client.post('/auth/login', json={'username': 'tester', 'password': TEST_PW},
                        headers={'X-Real-IP': '10.9.9.9'}).status_code == 200
-    auth._fails.clear()
+    client.cookies.clear()
 
 
-def test_login_username_case_insensitive(client):
-    auth._save({'tester': auth.hash_password(TEST_PW)})
+def test_login_username_case_insensitive_and_last_login(client):
+    auth.set_user('tester', TEST_PW)
     r = client.post('/auth/login', json={'username': ' Tester ', 'password': TEST_PW})
     assert r.status_code == 200 and r.json()['user'] == 'tester'
+    assert {x['username']: x for x in auth.list_users()}['tester']['last_login_at']
     client.cookies.clear()
+
+
+def test_import_users_file(tmp_path, monkeypatch):
+    import json
+    from src.api import db
+    monkeypatch.setenv('APP_DB', str(tmp_path / 'fresh.db'))
+    f = tmp_path / 'users.json'
+    f.write_text(json.dumps({'Legacy': auth.hash_password(TEST_PW)}))
+    monkeypatch.setenv('AUTH_USERS_FILE', str(f))
+    db.migrate()
+    assert auth.import_users_file() == 1 and auth.import_users_file() == 0   # faqat bir marta
+    assert auth.read_token(auth.create_session('legacy')) == 'legacy'
 
 
 def test_history_is_per_user(client):
@@ -166,3 +191,15 @@ def test_stats_from_db(client):
     assert mine['total'] == 2 and sum(mine['by_queue'].values()) == 2
     allst = client.get('/stats', headers=U).json()
     assert allst['total'] >= 2 and allst['users'] >= 1
+
+
+def test_feedback(client):
+    A, B = {**H, 'X-User': 'fb-a'}, {**H, 'X-User': 'fb-b'}
+    rid = client.post('/predict', json=T, headers=A).json()['request_id']
+    assert client.post(f'/history/{rid}/feedback', json={'queue': 'Nope'}, headers=A).status_code == 422
+    assert client.post(f'/history/{rid}/feedback', json={'queue': 'IT Support'}, headers=B).status_code == 404
+    r = client.post(f'/history/{rid}/feedback', json={'queue': 'IT Support'}, headers=A)
+    assert r.status_code == 200 and r.json()['feedback']['queue'] == 'IT Support'
+    assert client.get('/history', headers=A).json()['items'][0]['feedback']['queue'] == 'IT Support'
+    assert client.get('/stats?mine=true', headers=A).json()['feedback'] == 1
+    assert client.post(f'/history/{rid}/feedback', json={'queue': None}, headers=A).json()['feedback'] is None

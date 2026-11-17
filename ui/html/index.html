@@ -88,6 +88,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .hidden{display:none!important}
 .hist-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
 .hist-item:last-child{border-bottom:0}
+.fbrow{display:flex;gap:8px;flex-wrap:wrap}.fbrow select{flex:1;min-width:200px;width:auto}
 .hist-item .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
 .spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:r .7s linear infinite;vertical-align:-2px}
 @keyframes r{to{transform:rotate(360deg)}}
@@ -319,7 +320,7 @@ function bars(items) {
     <div class="track"><span style="width:${Math.max(1, Math.min(100, v * 100))}%"></span></div><div class="v">${label ?? pct(v)}</div></div>`).join('');
 }
 
-function renderResult(r, ms) {
+function renderResult(r, ms, fb = null) {
   const routed = r.route_to_operator;
   const maxC = Math.max(...r.reasons.map(x => Math.abs(x.contribution)), 1e-9);
   $('#result').innerHTML = `
@@ -341,7 +342,23 @@ function renderResult(r, ms) {
       <div><b>Model</b><span>v${esc(r.model_version)}</span></div>
       <div><b>Javob vaqti</b><span>${ms} ms</span></div>
       <div style="grid-column:1/-1"><b>Request ID</b><span>${esc(r.request_id)}</span></div>
+    </div>
+    <div class="section fb"><h3>Operator bahosi</h3>
+      <div class="fbrow">
+        <select id="fbq">${Object.keys(QUZ).map(q => `<option value="${esc(q)}" ${q === (fb ? fb.queue : r.queue) ? 'selected' : ''}>${esc(q)}</option>`).join('')}</select>
+        <button class="btn" id="fbsave">Saqlash</button>
+        ${fb ? '<button class="btn" id="fbundo">Bekor qilish</button>' : ''}
+      </div>
+      <div class="hint" id="fbmsg">${fb ? `✓ Belgilangan to'g'ri navbat: <b>${esc(fb.queue)}</b>${fb.queue === r.queue ? ' (model to\'g\'ri topgan)' : ' (model xato qilgan)'}` : 'Model to\'g\'ri topganmi? To\'g\'ri navbatni tanlab saqlang — bu baholar modelni qayta o\'qitishda ishlatiladi.'}</div>
     </div>`;
+  const send = async queue => {
+    try {
+      const it = await api(`/history/${encodeURIComponent(r.request_id)}/feedback`, {method: 'POST', body: JSON.stringify({queue})});
+      renderResult(r, ms, it.feedback); loadHist();
+    } catch (e) { $('#fbmsg').textContent = e.message; }
+  };
+  $('#fbsave').onclick = () => send($('#fbq').value);
+  if (fb) $('#fbundo').onclick = () => send(null);
 }
 
 /* ---------- history (serverda, foydalanuvchiga bog'langan) ---------- */
@@ -355,7 +372,7 @@ function drawHist() {
   if (!HIST.length) { $('#hist').innerHTML = '<div class="hint">Hali so\'rov yo\'q.</div>'; return; }
   const fmt = t => { const d = new Date(t * 1000); return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString() : d.toLocaleString(); };
   $('#hist').innerHTML = HIST.map((h, i) => `<div class="hist-item" data-i="${i}">
-    <div style="min-width:0"><div><b>${esc(h.result.queue)}</b> · ${pct(h.result.confidence)} ${h.result.route_to_operator ? '<span class="badge warn" style="padding:1px 7px">operator</span>' : ''}${h.source === 'batch' ? ' <span class="tag" style="padding:1px 6px">ommaviy</span>' : ''}</div>
+    <div style="min-width:0"><div><b>${esc(h.result.queue)}</b> · ${pct(h.result.confidence)} ${h.result.route_to_operator ? '<span class="badge warn" style="padding:1px 7px">operator</span>' : ''}${h.source === 'batch' ? ' <span class="tag" style="padding:1px 6px">ommaviy</span>' : ''}${h.feedback ? ` <span class="badge ${h.feedback.queue === h.result.queue ? 'ok' : 'warn'}" style="padding:1px 7px" title="Operator: ${esc(h.feedback.queue)}">✓ baholangan</span>` : ''}</div>
     <div class="t">${esc((h.subject ? h.subject + ' — ' : '') + h.body)}</div></div>
     <div class="hint" style="white-space:nowrap;margin:0">${fmt(h.created_at)}</div></div>`).join('')
     + (HTOTAL > HIST.length ? `<div class="hint" style="margin-top:8px">Jami ${HTOTAL} ta so'rov, oxirgi ${HIST.length} tasi ko'rsatilgan</div>` : '');
@@ -363,7 +380,7 @@ function drawHist() {
 $('#hist').onclick = e => {
   const el = e.target.closest('.hist-item'); if (!el) return;
   const h = HIST[el.dataset.i]; $('#subject').value = h.subject; $('#body').value = h.body;
-  $('#lang').value = ''; $('#ctype').value = ''; updCnt(); renderResult(h.result, '—');
+  $('#lang').value = ''; $('#ctype').value = ''; updCnt(); renderResult(h.result, '—', h.feedback);
 };
 $('#hclear').onclick = async () => {
   if (!HIST.length || !confirm(`Barcha ${HTOTAL} ta so'rov tarixingizdan o'chirilsinmi? Buni qaytarib bo'lmaydi.`)) return;
@@ -481,7 +498,9 @@ async function loadMetrics() {
       <div class="stat"><b>${total}</b><span>Bashoratlar (jami, ${g.users} foydalanuvchi)</span></div>
       <div class="stat"><b>${total ? pct(g.routed / total) : '—'}</b><span>Operatorga ulushi</span></div>
       <div class="stat"><b>${total ? pct(g.avg_confidence) : '—'}</b><span>O'rtacha ishonch</span></div>
-      <div class="stat"><b>${m.total}</b><span>Mening so'rovlarim</span></div>`;
+      <div class="stat"><b>${m.total}</b><span>Mening so'rovlarim</span></div>
+      <div class="stat"><b>${g.feedback}</b><span>Operator baholari</span></div>
+      <div class="stat"><b>${g.feedback ? pct(g.feedback_correct / g.feedback) : '—'}</b><span>Baholanganlarda model aniqligi</span></div>`;
     const q = Object.entries(g.by_queue), l = Object.entries(g.by_language);
     $('#mq').innerHTML = q.length ? bars(q.map(([k, v]) => [k, v / total, v])) : '<div class="hint">Hali bashorat yo\'q</div>';
     const lr = l.map(([k, v]) => [LANG[k] || k, v / total, v]);
