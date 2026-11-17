@@ -100,6 +100,11 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .user b{color:var(--text);font-weight:600}
 .user button{padding:5px 10px;font-size:12px}
 body.locked header,body.locked main{display:none}
+body:not(.locked) #login{display:none}
+body.booting #login .card{visibility:hidden}
+body.booting #login::after{content:"";width:28px;height:28px;border:3px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:r .7s linear infinite;position:absolute}
+.pw{position:relative}.pw input{padding-right:44px}
+.pw button{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);cursor:pointer;padding:6px 8px;font-size:15px}
 @media (max-width:860px){
   .grid{grid-template-columns:1fr}.links{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}
   .meta{grid-template-columns:1fr 1fr}.top{height:auto;flex-wrap:wrap;padding:10px 0}nav{margin-left:0;order:3;width:100%;overflow-x:auto}
@@ -107,15 +112,15 @@ body.locked header,body.locked main{display:none}
 }
 </style>
 </head>
-<body class="locked">
+<body class="locked booting">
 <div id="login">
   <form class="card" id="lform" autocomplete="on">
     <div class="brand"><div class="logo">TR</div>TicketRouter AI</div>
     <p class="sub">Davom etish uchun tizimga kiring</p>
     <label for="luser">Login</label>
-    <input id="luser" name="username" autocomplete="username" required maxlength="64">
+    <input id="luser" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="64">
     <div class="field"><label for="lpass">Parol</label>
-    <input id="lpass" name="password" type="password" autocomplete="current-password" required maxlength="256"></div>
+    <div class="pw"><input id="lpass" name="password" type="password" autocomplete="current-password" required maxlength="256"><button type="button" id="lshow" title="Parolni ko'rsatish" aria-label="Parolni ko'rsatish">👁</button></div></div>
     <button class="btn primary" id="lbtn" type="submit">Kirish</button>
     <div class="err hidden" id="lerr"></div>
   </form>
@@ -497,9 +502,9 @@ async function loadMetrics() {
 
 /* ---------- login ---------- */
 let started = false;
-function lock() { document.body.classList.add('locked'); clearTimeout(mtimer); setTimeout(() => $('#luser').focus(), 0); }
+function lock() { document.body.classList.remove('booting'); document.body.classList.add('locked'); clearTimeout(mtimer); setTimeout(() => $('#luser').focus(), 0); }
 function unlock(user) {
-  $('#uname').textContent = user; document.body.classList.remove('locked'); $('#lpass').value = '';
+  $('#uname').textContent = user; document.body.classList.remove('locked', 'booting'); $('#lpass').value = ''; $('#lpass').type = 'password';
   if (!started) {
     started = true; drawHist(); health(); setInterval(health, 15000);
     try { const t = localStorage.getItem('tr_tab'); if (t && t !== 'single') document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
@@ -515,10 +520,18 @@ $('#lform').onsubmit = async e => {
   } catch (x) { err.textContent = x.message; err.classList.remove('hidden'); $('#lpass').select(); }
   finally { btn.disabled = false; btn.textContent = 'Kirish'; }
 };
+$('#lshow').onclick = () => { const i = $('#lpass'); i.type = i.type === 'password' ? 'text' : 'password'; i.focus(); };
 $('#logout').onclick = async () => { try { await api('/auth/logout', {method: 'POST'}); } catch {} lock(); };
 
 /* ---------- init ---------- */
-api('/auth/check').then(r => unlock(r.user)).catch(lock);
+// Sessiyani tekshirish; tarmoq xatosida bir marta qayta urinadi, faqat 401 bo'lsa login ko'rsatiladi
+(async function boot(retry = 1) {
+  let r;
+  try { r = await fetch(API + '/auth/check', {cache: 'no-store'}); }
+  catch { if (retry) return setTimeout(() => boot(retry - 1), 800); return lock(); }
+  if (r.ok) { try { unlock((await r.json()).user); } catch (e) { console.error(e); } }
+  else lock();
+})();
 </script>
 </body>
 </html>

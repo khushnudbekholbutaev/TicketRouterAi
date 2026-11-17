@@ -109,16 +109,18 @@ class Login(BaseModel):
 @router.post('/login')
 def login(body: Login, request: Request, response: Response):
     ip = _client(request)
-    if _too_many(ip):
+    name = body.username.strip().lower()
+    key = f'{ip}|{name}'  # proksi ortida hamma bitta IP bo'lishi mumkin: blok faqat shu login uchun
+    if _too_many(key):
         raise HTTPException(429, 'Juda ko\'p noto\'g\'ri urinish. 5 daqiqadan so\'ng qayta urinib ko\'ring.')
-    stored = load_users().get(body.username)
+    stored = load_users().get(name)
     if not stored or not verify_password(body.password, stored):
-        _fails.setdefault(ip, []).append(time.time())
+        _fails.setdefault(key, []).append(time.time())
         raise HTTPException(401, 'Login yoki parol noto\'g\'ri')
-    _fails.pop(ip, None)
-    response.set_cookie(COOKIE, make_token(body.username), max_age=TTL, httponly=True, samesite='strict',
+    _fails.pop(key, None)
+    response.set_cookie(COOKIE, make_token(name), max_age=TTL, httponly=True, samesite='lax',
                         secure=os.environ.get('AUTH_COOKIE_SECURE', '0') == '1', path='/')
-    return {'user': body.username}
+    return {'user': name}
 
 
 @router.post('/logout')
@@ -154,7 +156,7 @@ def cli(argv: list[str]):
     if cmd == 'list':
         print('\n'.join(sorted(users)) or '(foydalanuvchi yo\'q)')
         return
-    name = argv[1]
+    name = argv[1].strip().lower()
     if cmd == 'remove':
         users.pop(name, None)
         _save(users)

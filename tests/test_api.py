@@ -115,4 +115,15 @@ def test_login_bruteforce_limit(client):
         client.post('/auth/login', json={'username': 'x', 'password': 'y'}, headers={'X-Real-IP': '10.9.9.9'})
     assert client.post('/auth/login', json={'username': 'x', 'password': 'y'},
                        headers={'X-Real-IP': '10.9.9.9'}).status_code == 429
+    # boshqa login (o'sha IP / proksi ortida) bloklanmaydi
+    auth._save({'tester': auth.hash_password(TEST_PW)})
+    assert client.post('/auth/login', json={'username': 'tester', 'password': TEST_PW},
+                       headers={'X-Real-IP': '10.9.9.9'}).status_code == 200
     auth._fails.clear()
+
+
+def test_login_username_case_insensitive(client):
+    auth._save({'tester': auth.hash_password(TEST_PW)})
+    r = client.post('/auth/login', json={'username': ' Tester ', 'password': TEST_PW})
+    assert r.status_code == 200 and r.json()['user'] == 'tester'
+    client.cookies.clear()
