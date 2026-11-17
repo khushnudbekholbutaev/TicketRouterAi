@@ -4,6 +4,7 @@ os.environ['API_KEY'] = 'test-key'
 os.environ['RATE_LIMIT'] = '1000/minute'
 import tempfile  # noqa: E402
 os.environ['AUTH_USERS_FILE'] = os.path.join(tempfile.mkdtemp(), 'users.json')
+os.environ['HISTORY_DB'] = os.path.join(tempfile.mkdtemp(), 'history.db')
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -127,3 +128,41 @@ def test_login_username_case_insensitive(client):
     r = client.post('/auth/login', json={'username': ' Tester ', 'password': TEST_PW})
     assert r.status_code == 200 and r.json()['user'] == 'tester'
     client.cookies.clear()
+
+
+def test_history_is_per_user(client):
+    A, B = {**H, 'X-User': 'alice'}, {**H, 'X-User': 'bob'}
+    client.delete('/history', headers=A)
+    client.delete('/history', headers=B)
+    assert client.post('/predict', json=T, headers=A).status_code == 200
+    assert client.post('/predict/batch', json={'tickets': [T, T]}, headers=A).status_code == 200
+    assert client.post('/predict', json={**T, 'subject': 'bob'}, headers=B).status_code == 200
+    ha, hb = client.get('/history', headers=A).json(), client.get('/history', headers=B).json()
+    assert ha['user'] == 'alice' and ha['total'] == 3 and hb['total'] == 1
+    assert {i['source'] for i in ha['items']} == {'single', 'batch'}
+    assert hb['items'][0]['subject'] == 'bob' and hb['items'][0]['result']['queue']
+    assert ha['items'][0]['created_at'] >= ha['items'][-1]['created_at']  # yangisi birinchi
+    # bir foydalanuvchi tozalasa, boshqasiniki qoladi
+    assert client.delete('/history', headers=A).json()['deleted'] == 3
+    assert client.get('/history', headers=A).json()['total'] == 0
+    assert client.get('/history', headers=B).json()['total'] == 1
+
+
+def test_history_requires_api_key_and_paging(client):
+    assert client.get('/history').status_code == 401
+    U = {**H, 'X-User': 'pager'}
+    client.delete('/history', headers=U)
+    client.post('/predict/batch', json={'tickets': [T] * 5}, headers=U)
+    r = client.get('/history?limit=2&offset=1', headers=U).json()
+    assert r['total'] == 5 and len(r['items']) == 2
+    assert client.get('/history?limit=0', headers=U).status_code == 422
+
+
+def test_stats_from_db(client):
+    U = {**H, 'X-User': 'statuser'}
+    client.delete('/history', headers=U)
+    client.post('/predict/batch', json={'tickets': [T, T]}, headers=U)
+    mine = client.get('/stats?mine=true', headers=U).json()
+    assert mine['total'] == 2 and sum(mine['by_queue'].values()) == 2
+    allst = client.get('/stats', headers=U).json()
+    assert allst['total'] >= 2 and allst['users'] >= 1

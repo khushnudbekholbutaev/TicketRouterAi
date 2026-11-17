@@ -4,8 +4,10 @@ services:
     env_file: ../.env
     environment:
       AUTH_USERS_FILE: /app/auth/users.json
+      HISTORY_DB: /app/var/history.db
     volumes:
       - ../auth:/app/auth:ro
+      - history:/app/var        # so'rovlar tarixi (SQLite) — rebuild'da saqlanadi
     ports: ["8000:8000"]
     restart: unless-stopped
   prometheus:
@@ -34,3 +36,5 @@ services:
     ports: ["8080:80"]
     depends_on: [api]
     restart: unless-stopped
+volumes:
+  history:

@@ -219,7 +219,7 @@ body.booting #login::after{content:"";width:28px;height:28px;border:3px solid va
     <div class="links" id="mlinks"></div>
   </div>
   <div class="card" style="margin-top:20px">
-    <h2>API ko'rsatkichlari (jonli)</h2>
+    <h2>Statistika (barcha so'rovlar)</h2>
     <div class="stats" id="mstats"></div>
     <div class="grid" style="gap:20px">
       <div><div class="section"><h3>Navbatlar bo'yicha bashoratlar</h3><div class="bars" id="mq"></div></div></div>
@@ -251,7 +251,7 @@ async function api(path, opts = {}) {
   if (!r.ok) {
     let msg = `Xato ${r.status}`;
     if (r.status === 401 && !path.startsWith('/auth/')) { lock(); throw new Error('Sessiya tugadi, qayta kiring.'); }
-    if (r.status === 429) msg = 'So\'rovlar limiti oshib ketdi (daqiqasiga 60). Birozdan so\'ng urinib ko\'ring.';
+    if (r.status === 429) msg = path === '/auth/login' ? 'Juda ko\'p kirish urinishi. Bir daqiqadan so\'ng qayta urinib ko\'ring.' : 'So\'rovlar juda tez yuborilmoqda (limit). Birozdan so\'ng urinib ko\'ring.';
     else if (r.status === 401) msg = data && data.detail ? data.detail : 'Ruxsat yo\'q';
     else if (data && data.detail) msg += ': ' + (Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : data.detail);
     throw new Error(msg);
@@ -309,7 +309,7 @@ async function classify() {
   try {
     const r = await api('/predict', {method:'POST', body: JSON.stringify(payload)});
     renderResult(r, Math.round(performance.now() - t0));
-    addHist(payload, r);
+    loadHist();
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
   finally { btn.disabled = false; btn.textContent = 'Toifalash'; }
 }
@@ -344,23 +344,32 @@ function renderResult(r, ms) {
     </div>`;
 }
 
-/* ---------- history (per-browser) ---------- */
-let HIST = []; try { HIST = JSON.parse(localStorage.getItem('tr_hist') || '[]'); } catch {}
-function saveHist() { try { localStorage.setItem('tr_hist', JSON.stringify(HIST.slice(0, 15))); } catch {} }
-function addHist(p, r) { HIST.unshift({p, r, at: Date.now()}); HIST = HIST.slice(0, 15); saveHist(); drawHist(); }
+/* ---------- history (serverda, foydalanuvchiga bog'langan) ---------- */
+let HIST = [], HTOTAL = 0;
+try { localStorage.removeItem('tr_hist'); } catch {}  // eski brauzer tarixi endi ishlatilmaydi
+async function loadHist() {
+  try { const r = await api('/history?limit=15'); HIST = r.items; HTOTAL = r.total; drawHist(); }
+  catch (e) { $('#hist').innerHTML = `<div class="hint">Tarixni yuklab bo'lmadi: ${esc(e.message)}</div>`; }
+}
 function drawHist() {
   if (!HIST.length) { $('#hist').innerHTML = '<div class="hint">Hali so\'rov yo\'q.</div>'; return; }
+  const fmt = t => { const d = new Date(t * 1000); return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString() : d.toLocaleString(); };
   $('#hist').innerHTML = HIST.map((h, i) => `<div class="hist-item" data-i="${i}">
-    <div style="min-width:0"><div><b>${esc(h.r.queue)}</b> · ${pct(h.r.confidence)} ${h.r.route_to_operator ? '<span class="badge warn" style="padding:1px 7px">operator</span>' : ''}</div>
-    <div class="t">${esc((h.p.subject ? h.p.subject + ' — ' : '') + h.p.body)}</div></div>
-    <div class="hint" style="white-space:nowrap;margin:0">${new Date(h.at).toLocaleTimeString()}</div></div>`).join('');
+    <div style="min-width:0"><div><b>${esc(h.result.queue)}</b> · ${pct(h.result.confidence)} ${h.result.route_to_operator ? '<span class="badge warn" style="padding:1px 7px">operator</span>' : ''}${h.source === 'batch' ? ' <span class="tag" style="padding:1px 6px">ommaviy</span>' : ''}</div>
+    <div class="t">${esc((h.subject ? h.subject + ' — ' : '') + h.body)}</div></div>
+    <div class="hint" style="white-space:nowrap;margin:0">${fmt(h.created_at)}</div></div>`).join('')
+    + (HTOTAL > HIST.length ? `<div class="hint" style="margin-top:8px">Jami ${HTOTAL} ta so'rov, oxirgi ${HIST.length} tasi ko'rsatilgan</div>` : '');
 }
 $('#hist').onclick = e => {
   const el = e.target.closest('.hist-item'); if (!el) return;
-  const h = HIST[el.dataset.i]; $('#subject').value = h.p.subject; $('#body').value = h.p.body;
-  $('#lang').value = h.p.language || ''; $('#ctype').value = h.p.customer_type || ''; updCnt(); renderResult(h.r, '—');
+  const h = HIST[el.dataset.i]; $('#subject').value = h.subject; $('#body').value = h.body;
+  $('#lang').value = ''; $('#ctype').value = ''; updCnt(); renderResult(h.result, '—');
 };
-$('#hclear').onclick = () => { HIST = []; saveHist(); drawHist(); };
+$('#hclear').onclick = async () => {
+  if (!HIST.length || !confirm(`Barcha ${HTOTAL} ta so'rov tarixingizdan o'chirilsinmi? Buni qaytarib bo'lmaydi.`)) return;
+  try { await api('/history', {method: 'DELETE'}); } catch (e) { alert(e.message); }
+  loadHist();
+};
 
 /* ---------- batch ---------- */
 let BATCH = [];
@@ -406,7 +415,7 @@ $('#bgo').onclick = async () => {
     }
     renderBatch();
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); if (BATCH.length) renderBatch(); }
-  finally { btn.disabled = false; btn.textContent = 'Toifalash'; }
+  finally { btn.disabled = false; btn.textContent = 'Toifalash'; loadHist(); }
 };
 function renderBatch() {
   const n = BATCH.length, routed = BATCH.filter(r => r.route_to_operator).length;
@@ -461,42 +470,25 @@ $('#mlinks').innerHTML = [
   ['API hujjatlari', 8000, 'Swagger UI (/docs)', '/docs'],
 ].map(([n, p, d, path = '']) => `<a href="${location.protocol}//${host}:${p}${path}" target="_blank" rel="noopener"><b>${n} ↗</b><span>${d} · :${p}</span></a>`).join('');
 
-function parseProm(text) {
-  const out = [];
-  text.split('\n').forEach(l => {
-    if (!l || l[0] === '#') return;
-    const m = l.match(/^([a-zA-Z_:][\w:]*)(\{([^}]*)\})?\s+([^\s]+)/); if (!m) return;
-    const labels = {}; (m[3] || '').replace(/(\w+)="((?:[^"\\]|\\.)*)"/g, (_, k, v) => labels[k] = v);
-    out.push({name: m[1], labels, value: parseFloat(m[4])});
-  });
-  return out;
-}
 let mtimer;
 async function loadMetrics() {
   clearTimeout(mtimer);
-  if ($('#tab-monitor').classList.contains('hidden')) return;
+  if ($('#tab-monitor').classList.contains('hidden') || document.body.classList.contains('locked')) return;
   try {
-    const r = await fetch(API + '/metrics'); const P = parseProm(await r.text());
-    const sum = (f) => P.filter(f).reduce((s, x) => s + x.value, 0);
-    const preds = P.filter(x => x.name === 'predictions_total');
-    const total = preds.reduce((s, x) => s + x.value, 0);
-    const routed = preds.filter(x => x.labels.routed === 'True').reduce((s, x) => s + x.value, 0);
-    const reqs = sum(x => x.name === 'api_requests_total' && x.labels.endpoint.startsWith('/predict'));
-    const errs = sum(x => x.name === 'api_requests_total' && x.labels.endpoint.startsWith('/predict') && x.labels.status >= '400');
-    const cs = sum(x => x.name === 'prediction_confidence_sum'), cc = sum(x => x.name === 'prediction_confidence_count');
+    const [g, m] = await Promise.all([api('/stats'), api('/stats?mine=true')]);
+    const total = g.total;
     $('#mstats').innerHTML = `
-      <div class="stat"><b>${total}</b><span>Bashoratlar</span></div>
-      <div class="stat"><b>${total ? pct(routed / total) : '—'}</b><span>Operatorga ulushi</span></div>
-      <div class="stat"><b>${cc ? pct(cs / cc) : '—'}</b><span>O'rtacha ishonch</span></div>
-      <div class="stat"><b>${errs}</b><span>Xato so'rovlar (4xx/5xx) / ${reqs}</span></div>`;
-    const agg = (key) => { const o = {}; preds.forEach(x => o[x.labels[key]] = (o[x.labels[key]] || 0) + x.value); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
-    const q = agg('queue'), l = agg('language');
+      <div class="stat"><b>${total}</b><span>Bashoratlar (jami, ${g.users} foydalanuvchi)</span></div>
+      <div class="stat"><b>${total ? pct(g.routed / total) : '—'}</b><span>Operatorga ulushi</span></div>
+      <div class="stat"><b>${total ? pct(g.avg_confidence) : '—'}</b><span>O'rtacha ishonch</span></div>
+      <div class="stat"><b>${m.total}</b><span>Mening so'rovlarim</span></div>`;
+    const q = Object.entries(g.by_queue), l = Object.entries(g.by_language);
     $('#mq').innerHTML = q.length ? bars(q.map(([k, v]) => [k, v / total, v])) : '<div class="hint">Hali bashorat yo\'q</div>';
     const lr = l.map(([k, v]) => [LANG[k] || k, v / total, v]);
-    if (total) lr.push(['Operatorga yuborilgan', routed / total, routed]);
+    if (total) lr.push(['Operatorga yuborilgan', g.routed / total, g.routed]);
     $('#ml').innerHTML = lr.length ? bars(lr) : '<div class="hint">Hali bashorat yo\'q</div>';
-    $('#mupd').textContent = 'API 2 ta worker bilan ishlaydi, bu raqamlar tasodifiy bittasiniki (taxminiy) — aniq yig\'indi Grafana\'da · har 5 soniyada yangilanadi · ' + new Date().toLocaleTimeString();
-  } catch (e) { $('#mupd').textContent = 'Metrikalarni olib bo\'lmadi: ' + e.message; }
+    $('#mupd').textContent = 'Barcha saqlangan so\'rovlar bo\'yicha (bazadan) · har 5 soniyada yangilanadi · ' + new Date().toLocaleTimeString();
+  } catch (e) { $('#mupd').textContent = 'Statistikani olib bo\'lmadi: ' + e.message; }
   mtimer = setTimeout(loadMetrics, 5000);
 }
 
@@ -505,8 +497,9 @@ let started = false;
 function lock() { document.body.classList.remove('booting'); document.body.classList.add('locked'); clearTimeout(mtimer); setTimeout(() => $('#luser').focus(), 0); }
 function unlock(user) {
   $('#uname').textContent = user; document.body.classList.remove('locked', 'booting'); $('#lpass').value = ''; $('#lpass').type = 'password';
+  HIST = []; drawHist(); loadHist();  // har kirishda shu foydalanuvchining tarixi
   if (!started) {
-    started = true; drawHist(); health(); setInterval(health, 15000);
+    started = true; health(); setInterval(health, 15000);
     try { const t = localStorage.getItem('tr_tab'); if (t && t !== 'single') document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
   }
 }

@@ -1,3 +1,9 @@
+# Rate limit (IP bo'yicha). Bu fayl nginx'ning http{} bloki ichiga qo'shiladi, shuning uchun zonalar shu yerda.
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;     # umumiy API: sekundiga 10 ta (+burst)
+limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;    # login: daqiqasiga 5 ta (+burst) — parol terish hujumiga qarshi
+limit_req_status 429;
+limit_req_log_level warn;
+
 server {
     listen 80;
     server_name _;
@@ -14,25 +20,38 @@ server {
         proxy_set_header Cookie $http_cookie;
     }
 
-    # Login / logout / check — ochiq (ichida o'z tekshiruvi bor)
+    location = /api/auth/login {
+        limit_req zone=login burst=5 nodelay;
+        proxy_pass http://api:8000/auth/login;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # logout / check — ochiq (ichida o'z tekshiruvi bor)
     location /api/auth/ {
+        limit_req zone=api burst=20 nodelay;
         proxy_pass http://api:8000/auth/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
     location = /api/health {
+        limit_req zone=api burst=20 nodelay;
         proxy_pass http://api:8000/health;
     }
 
-    # Qolgan API — faqat tizimga kirgan foydalanuvchilar uchun. API-kalitni brauzer emas, nginx qo'shadi
+    # Qolgan API — faqat tizimga kirgan foydalanuvchilar uchun. API-kalit va foydalanuvchi nomini
+    # brauzer emas, nginx qo'shadi (mijoz yuborgan X-User / X-API-Key almashtiriladi)
     location /api/ {
+        limit_req zone=api burst=20 nodelay;
         auth_request /_auth;
+        auth_request_set $auth_user $upstream_http_x_user;
         proxy_pass http://api:8000/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-API-Key "${API_KEY}";
+        proxy_set_header X-User $auth_user;
         proxy_read_timeout 60s;
     }
 

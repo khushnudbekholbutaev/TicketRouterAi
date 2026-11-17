@@ -3,6 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 OMP_NUM_THREADS=2
 WORKDIR /app
 COPY requirements-serve.txt .
 RUN pip install --no-cache-dir -r requirements-serve.txt && useradd -m -u 10001 app
+RUN mkdir -p /app/var && chown app:app /app/var   # tarix bazasi (volume) uchun
 COPY src ./src
 COPY models ./models
 USER app

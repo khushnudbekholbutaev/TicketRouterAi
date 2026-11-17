@@ -1,6 +1,7 @@
 """Bosqich 7: FastAPI xizmati — murojaatni toifalash va yo'naltirish.
 Endpointlar: POST /predict, POST /predict/batch, GET /health, GET /metrics, GET /model/info,
-POST /auth/login, POST /auth/logout, GET /auth/check (UI login).
+POST /auth/login, POST /auth/logout, GET /auth/check (UI login),
+GET/DELETE /history (foydalanuvchi tarixi, SQLite), GET /stats (umumiy statistika bazadan).
 Xavfsizlik: X-API-Key, rate limiting (slowapi), kiritma hajmi cheklovi, loglarda PII maskalash."""
 import hmac
 import json
@@ -14,13 +15,14 @@ from typing import Literal, Optional
 
 import joblib
 import numpy as np
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from src.api import history
 from src.api.auth import router as auth_router
 from src.config import MODELS
 from src.models.explain import Explainer
@@ -113,10 +115,16 @@ def load_artifacts():
 @asynccontextmanager
 async def lifespan(app):
     load_artifacts()
+    history.init_db()
     yield
 
 
-limiter = Limiter(key_func=get_remote_address)
+def client_ip(request: Request) -> str:
+    # nginx ortida hamma so'rov nginx IP'sidan keladi — haqiqiy IP X-Real-IP sarlavhasida
+    return request.headers.get('x-real-ip') or get_remote_address(request)
+
+
+limiter = Limiter(key_func=client_ip)
 app = FastAPI(title='TicketRouter AI', version=MODEL_VERSION, lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -126,6 +134,19 @@ app.include_router(auth_router)
 def check_api_key(x_api_key: str = Header(default='')):
     if not hmac.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=401, detail='API-kalit noto\'g\'ri yoki yo\'q')
+
+
+def current_user(x_user: str = Header(default='')) -> str:
+    # nginx /auth/check natijasidagi login'ni X-User sifatida uzatadi (mijoz yuborgani nginx'da almashtiriladi).
+    # To'g'ridan-to'g'ri API-kalit bilan kelgan so'rovlar 'api' foydalanuvchisiga yoziladi.
+    return x_user.strip().lower()[:64] or 'api'
+
+
+def _record(user: str, source: str, items, preds):
+    try:
+        history.save(user, source, list(zip(items, preds)))
+    except Exception:  # tarix yozilmasa ham bashorat qaytarilsin
+        log.exception('history save failed')
 
 
 def _predict(items: list[Ticket]) -> list[Prediction]:
@@ -160,14 +181,34 @@ async def metrics_mw(request: Request, call_next):
 
 @app.post('/predict', response_model=Prediction)
 @limiter.limit(RATE)
-def predict(request: Request, ticket: Ticket, _=Depends(check_api_key)):
-    return _predict([ticket])[0]
+def predict(request: Request, ticket: Ticket, _=Depends(check_api_key), user: str = Depends(current_user)):
+    preds = _predict([ticket])
+    _record(user, 'single', [ticket], preds)
+    return preds[0]
 
 
 @app.post('/predict/batch', response_model=list[Prediction])
 @limiter.limit(RATE)
-def predict_batch(request: Request, batch: Batch, _=Depends(check_api_key)):
-    return _predict(batch.tickets)
+def predict_batch(request: Request, batch: Batch, _=Depends(check_api_key), user: str = Depends(current_user)):
+    preds = _predict(batch.tickets)
+    _record(user, 'batch', batch.tickets, preds)
+    return preds
+
+
+@app.get('/history')
+def get_history(limit: int = Query(20, ge=1, le=200), offset: int = Query(0, ge=0),
+                _=Depends(check_api_key), user: str = Depends(current_user)):
+    return {'user': user, **history.list_for(user, limit, offset)}
+
+
+@app.delete('/history')
+def delete_history(_=Depends(check_api_key), user: str = Depends(current_user)):
+    return {'user': user, 'deleted': history.clear_for(user)}
+
+
+@app.get('/stats')
+def get_stats(mine: bool = False, _=Depends(check_api_key), user: str = Depends(current_user)):
+    return history.stats(user if mine else None)
 
 
 @app.get('/health')
